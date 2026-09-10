@@ -1,0 +1,31 @@
+# Système
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Éditeurs
+.vscode/
+.idea/
+*.swp
+*~
+
+# Outils / dépendances éventuelles
+node_modules/
+.cache/
+.parcel-cache/
+dist/
+build/
+coverage/
+*.log
+npm-debug.log*
+
+# Livraisons
+patch-v*.zip
+*.tgz
+
+# Environnement
+.env
+.env.local
+
+# NB : vendor/ est volontairement versionné (pdf.js et pdf-lib figés,
+# nécessaires au fonctionnement hors ligne de la PWA).
