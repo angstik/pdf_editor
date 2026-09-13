@@ -1,0 +1,13 @@
+# Fichiers présents dans le dépôt mais à ne pas publier.
+# (_headers et _redirects sont interprétés puis exclus automatiquement.)
+.git
+.github
+.gitignore
+.assetsignore
+.wrangler
+node_modules
+wrangler.jsonc
+wrangler.toml
+README.md
+.DS_Store
+patch-v*.zip

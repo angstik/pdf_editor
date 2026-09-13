@@ -2,7 +2,7 @@
   "name": "EDITION PDF",
   "short_name": "EDITION PDF",
   "description": "Poser des signatures, des images et des textes sur un PDF, entièrement hors ligne.",
-  "id": "/pdf_editor/",
+  "id": "./",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

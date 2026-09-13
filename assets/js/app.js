@@ -448,7 +448,7 @@ async function loadPdf(file){
   try{
     const buf = new Uint8Array(await file.arrayBuffer());
     Doc.bytes = buf;
-    Doc.pdf   = await pdfjsLib.getDocument({data: buf.slice(0)}).promise;
+    Doc.pdf   = await pdfjsLib.getDocument({data: buf.slice(0), isEvalSupported:false}).promise;
     Object.assign(Doc, {name:file.name, total:Doc.pdf.numPages, page:1, items:[], sel:null, undo:[]});
     Doc.vp1.clear(); Doc.rot.clear();
     $('#docName').textContent = file.name;
@@ -913,6 +913,39 @@ if('serviceWorker' in navigator && location.protocol.startsWith('http')){
     }catch(e){ console.warn('Service worker non enregistré :', e.message); }
   });
 }
+/* --- session d'authentification (Cloudflare Access ou équivalent) ---------
+   Quand la session expire, le proxy répond par une redirection cross-origin
+   vers la page de connexion : les fetch de l'application échouent en silence
+   et le service worker sert le cache, donnant l'illusion que tout va bien.
+   On sonde donc l'origine avec redirect:'manual' ; ?ping=1 court-circuite le
+   service worker (voir sw.js). Un rechargement en navigation de premier niveau
+   déclenche le flux de connexion normalement. */
+let sessionWarned = false;
+async function checkSession(){
+  if(!location.protocol.startsWith('http') || !navigator.onLine || sessionWarned) return;
+  try{
+    const r = await fetch('manifest.webmanifest?ping=1', {cache:'no-store', redirect:'manual', credentials:'same-origin'});
+    if(r.type==='opaqueredirect' || r.status===302 || r.status===401 || r.status===403) sessionExpired();
+  }catch(e){ /* hors ligne : rien à signaler */ }
+}
+function sessionExpired(){
+  if(sessionWarned) return;
+  sessionWarned = true;
+  const pending = Doc.items.length;
+  modal(`<h3>Session expirée</h3>
+    <p>La session d'authentification n'est plus valide. L'application continue de fonctionner
+    hors ligne, mais elle ne peut plus se mettre à jour.${pending
+      ? ' <strong>Enregistrez votre PDF avant de recharger</strong> : les éléments posés ne sont pas conservés.'
+      : ''}</p>
+    <div class="foot">
+      <button onclick="closeModal()">Plus tard</button>
+      <button class="primary" id="sReload">Se reconnecter</button></div>`);
+  $('#sReload').onclick = ()=> location.reload();
+}
+addEventListener('visibilitychange', ()=>{ if(!document.hidden) checkSession(); });
+addEventListener('online', checkSession);
+setInterval(checkSession, 15*60*1000);
+
 /* ouverture depuis le système de fichiers (file_handlers) */
 if('launchQueue' in window){
   launchQueue.setConsumer(async lp=>{
@@ -930,6 +963,7 @@ addEventListener('resize', ()=>{ if(Doc.pdf){ clearTimeout(Doc.rt); Doc.rt=setTi
 (async function boot(){
   if(new URLSearchParams(location.search).get('action')==='open')
     setTimeout(()=>{ try{ $('#filePdf').click(); }catch(e){} }, 400);
+  setTimeout(checkSession, 3000);
   try{
     await Vault.init();
     await libLoad();

@@ -1,0 +1,29 @@
+# Déploiement sur Cloudflare Workers à chaque push sur main.
+# Alternative : Workers Builds (connexion Git native depuis le dashboard Cloudflare),
+# auquel cas ce workflow est inutile.
+#
+# Secrets à créer dans GitHub (Settings > Secrets and variables > Actions) :
+#   CLOUDFLARE_API_TOKEN   jeton avec la permission "Workers Scripts: Edit"
+#   CLOUDFLARE_ACCOUNT_ID  identifiant de compte Cloudflare
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - name: Deploy to Cloudflare Workers
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy

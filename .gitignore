@@ -23,6 +23,10 @@ npm-debug.log*
 patch-v*.zip
 *.tgz
 
+# Cloudflare / Wrangler
+.wrangler/
+.dev.vars
+
 # Environnement
 .env
 .env.local

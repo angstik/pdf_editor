@@ -14,15 +14,7 @@
 <link rel="icon" href="assets/icons/favicon-32.png" sizes="32x32">
 <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
 <link rel="stylesheet" href="assets/css/app.css">
-<script>
-/* thème appliqué avant le premier rendu pour éviter le flash */
-(function(){
-  var t = localStorage.getItem('pdfed.theme') || 'system';
-  document.documentElement.dataset.theme = t;
-  if(t==='system' && window.matchMedia('(prefers-color-scheme: light)').matches)
-    document.documentElement.classList.add('sys-light');
-})();
-</script>
+<script src="assets/js/theme-boot.js"></script>
 </head>
 <body>
 

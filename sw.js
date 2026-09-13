@@ -2,8 +2,15 @@
    EDITION PDF — service worker
    Stratégie : precache de l'app shell, cache-first, réseau en repli.
    Incrémentez CACHE_VERSION à chaque livraison pour forcer la mise à jour.
+
+   Point d'attention derrière un proxy d'authentification (Cloudflare Access,
+   Entra ID App Proxy…) : quand la session expire, l'origine répond par une
+   redirection vers la page de connexion. Cette réponse ne doit JAMAIS entrer
+   dans le cache, sinon l'application sert du HTML de connexion à la place de
+   ses propres fichiers. Toutes les écritures en cache sont donc filtrées sur
+   `res.ok && !res.redirected && res.type === 'basic'`.
    ===================================================================== */
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const CACHE = 'pdfed-' + CACHE_VERSION;
 
 const SHELL = [
@@ -12,6 +19,7 @@ const SHELL = [
   'manifest.webmanifest',
   'assets/css/app.css',
   'assets/js/app.js',
+  'assets/js/theme-boot.js',
   'vendor/pdf.min.js',
   'vendor/pdf.worker.min.js',
   'vendor/pdf-lib.min.js',
@@ -22,11 +30,18 @@ const SHELL = [
   'assets/icons/favicon-32.png'
 ];
 
+const cacheable = res => res && res.ok && !res.redirected && res.type === 'basic';
+
 self.addEventListener('install', e=>{
   e.waitUntil((async ()=>{
     const c = await caches.open(CACHE);
-    await Promise.all(SHELL.map(u => c.add(new Request(u, {cache:'reload'})).catch(err =>
-      console.warn('[sw] non mis en cache :', u, err.message))));
+    await Promise.all(SHELL.map(async u=>{
+      try{
+        const res = await fetch(new Request(u, {cache:'reload', credentials:'same-origin'}));
+        if(cacheable(res)) await c.put(u, res);
+        else console.warn('[sw] réponse non mise en cache :', u, res.status, res.redirected?'(redirigée)':'');
+      }catch(err){ console.warn('[sw] échec :', u, err.message); }
+    }));
     self.skipWaiting();
   })());
 });
@@ -44,13 +59,16 @@ self.addEventListener('fetch', e=>{
   const url = new URL(req.url);
   if(url.origin !== location.origin) return;
 
-  // Navigations : réseau d'abord (pour récupérer une nouvelle version), repli sur le cache
+  // Sonde de session : toujours réseau, jamais de cache (voir checkSession dans app.js)
+  if(url.searchParams.has('ping')) return;
+
+  // Navigations : réseau d'abord, repli sur le cache quand on est hors ligne
   if(req.mode === 'navigate'){
     e.respondWith((async ()=>{
       try{
         const net = await fetch(req);
-        (await caches.open(CACHE)).put('index.html', net.clone());
-        return net;
+        if(cacheable(net)) (await caches.open(CACHE)).put('index.html', net.clone());
+        return net;                         // y compris une redirection de connexion
       }catch(err){
         return (await caches.match('index.html')) || (await caches.match('./')) || Response.error();
       }
@@ -64,7 +82,7 @@ self.addEventListener('fetch', e=>{
     if(hit) return hit;
     try{
       const net = await fetch(req);
-      if(net.ok && net.type === 'basic') (await caches.open(CACHE)).put(req, net.clone());
+      if(cacheable(net)) (await caches.open(CACHE)).put(req, net.clone());
       return net;
     }catch(err){ return Response.error(); }
   })());
