@@ -8,7 +8,7 @@
    d'authentification, une page de connexion renvoyée par redirection n'entrera
    jamais dans le cache à la place des fichiers de l'application.
    ===================================================================== */
-const CACHE_VERSION = 'v4';
+const CACHE_VERSION = 'v5';
 const CACHE = 'pdfed-' + CACHE_VERSION;
 
 const SHELL = [
@@ -22,6 +22,15 @@ const SHELL = [
   'vendor/pdf.min.js',
   'vendor/pdf.worker.min.js',
   'vendor/pdf-lib.min.js',
+  'vendor/fontkit.umd.min.js',
+  'vendor/fonts/Montserrat-Regular.ttf',
+  'vendor/fonts/Montserrat-Bold.ttf',
+  'vendor/fonts/Montserrat-Italic.ttf',
+  'vendor/fonts/Montserrat-BoldItalic.ttf',
+  'vendor/fonts/Roboto-Regular.ttf',
+  'vendor/fonts/Roboto-Bold.ttf',
+  'vendor/fonts/Roboto-Italic.ttf',
+  'vendor/fonts/Roboto-BoldItalic.ttf',
   'assets/icons/icon-192.png',
   'assets/icons/icon-512.png',
   'assets/icons/icon-maskable-512.png',

@@ -31,8 +31,18 @@ Installable sur ordinateur et sur mobile (Android / iOS), utilisable hors ligne.
   sans aucun défilement. Le calcul automatique se désactive dès que l'on zoome à la main.
 - Pose d'une image ou d'un texte, déplacement, redimensionnement, rotation libre,
   réglage de l'opacité, changement de page.
-- Texte : Helvetica / Times / Courier, gras, italique, corps, couleur, multi-lignes,
-  bouton « Date » pour insérer la date du jour.
+- Texte : **Montserrat** (par défaut) et **Roboto**, deux familles libres embarquées, plus
+  Helvetica / Times / Courier. Gras, italique, corps, couleur, multi-lignes, bouton « Date ».
+  Les deux familles libres couvrent le latin étendu **et le cyrillique** : contrairement aux
+  polices standard du PDF, limitées à WinAnsi, elles permettent de saisir de l'ukrainien.
+- **Surligneur** : on trace une bande sur la page, et chaque ligne de texte traversée reçoit
+  un surlignage calé sur sa hauteur réelle, déduite de la couche de texte du PDF. Sur un
+  document scanné, sans couche de texte, le rectangle tracé est conservé tel quel. Rendu en
+  mode de fusion *multiply*, à l'écran comme dans le PDF exporté.
+- **Couleurs récentes** proposées en tête de la rangée de pastilles, mémorisées par usage
+  (texte et surlignage ont leurs propres historiques).
+- Double-clic sur la poignée ronde : l'angle est ramené au multiple de 90° le plus proche.
+- Fermeture du document sans enregistrer, avec confirmation et raccourci vers l'export.
 - **Valider la position** verrouille l'élément ; on peut alors en poser un autre, puis
   déverrouiller à tout moment.
 - **Annulation et rétablissement** sur 80 niveaux (boutons ↶ ↷, Ctrl+Z, Ctrl+Maj+Z, Ctrl+Y).
@@ -49,12 +59,14 @@ Installable sur ordinateur et sur mobile (Android / iOS), utilisable hors ligne.
 
 **Interface**
 - **Sept langues** : français, anglais, allemand, espagnol, italien, ukrainien, tchèque.
-  Détection depuis `navigator.languages` au premier lancement, choix manuel par le bouton 🌐,
+  Détection depuis `navigator.languages` au premier lancement, choix manuel dans le panneau
+  *Propriétés* (avec drapeau dessiné en SVG, les emoji drapeaux n'étant pas rendus sous Windows),
   bascule à chaud sans rechargement.
 - **Écran d'accueil** au premier lancement : quatre étapes d'usage et la marche à suivre pour
   installer l'application sur Android, iOS et ordinateur. Réaffichable par le bouton ?,
   masquable définitivement.
-- Thème **sombre / clair / système**, mémorisé sur l'appareil (bouton ◐ de la barre supérieure).
+- Thème **sombre / clair / système**, choix de la langue avec drapeau, et accès à l'aide :
+  tous regroupés dans le panneau *Propriétés* pour dégager la barre supérieure.
 - Disposition adaptative : sur mobile, la bibliothèque et l'inspecteur deviennent des tiroirs,
   la barre d'outils se replie sur des icônes et ne défile jamais horizontalement.
 - PWA : installable, hors ligne, gestionnaire de fichiers `.pdf` sur les navigateurs
@@ -145,7 +157,9 @@ pdf_editor/
 └── vendor/
     ├── pdf.min.js              # pdf.js 3.11.174 (build legacy)
     ├── pdf.worker.min.js
-    └── pdf-lib.min.js          # pdf-lib 1.17.1
+    ├── pdf-lib.min.js          # pdf-lib 1.17.1
+    ├── fontkit.umd.min.js      # @pdf-lib/fontkit 1.1.1
+    └── fonts/                  # Montserrat et Roboto, 4 styles chacune
 ```
 
 Aucune étape de build : les fichiers sont livrés tels quels.
@@ -167,8 +181,16 @@ ancre  = centre + R(θ) · (−w/2, −h/2)
 Une seule formule couvre donc tous les cas, y compris la rotation libre d'une signature sur
 une page elle-même pivotée.
 
-**Texte.** Les polices standard PDF (Helvetica, Times, Courier et leurs variantes) sont utilisées,
-en encodage WinAnsi : les accents français passent, les alphabets non latins non. La ligne de
+**Polices.** Montserrat et Roboto sont livrées sous forme d'instances statiques (poids 400 et 700,
+romain et italique) extraites des polices variables du dépôt `google/fonts` avec
+`fonttools varLib.instancer`, puis réduites avec `pyftsubset` au latin, au latin étendu et au
+cyrillique : 8 fichiers pour 432 Ko au total. Les mêmes fichiers servent à l'affichage
+(`@font-face`) et à l'intégration dans le PDF via `@pdf-lib/fontkit`, avec sous-ensemble
+automatique à l'export — un PDF signé ne contient que les glyphes réellement employés.
+
+**Texte.** Les polices standard PDF (Helvetica, Times, Courier et leurs variantes) restent
+disponibles et ne coûtent aucun octet, mais elles sont en encodage WinAnsi :
+les accents français passent, les alphabets non latins non. La ligne de
 base est *mesurée* dans le DOM (élément `inline-block` de hauteur nulle aligné sur la ligne de
 base) plutôt qu'approximée, pour que l'aperçu et le rendu PDF coïncident au pixel près.
 
@@ -214,6 +236,9 @@ d'y remettre quoi que ce soit, le chiffrement d'un nouvel élément exigeant la 
 
 - [pdf.js](https://github.com/mozilla/pdf.js) — Apache-2.0, Mozilla.
 - [pdf-lib](https://github.com/Hopding/pdf-lib) — MIT, Andrew Dillon.
+- [@pdf-lib/fontkit](https://github.com/Hopding/fontkit) — MIT.
+- [Montserrat](https://github.com/google/fonts/tree/main/ofl/montserrat) — SIL Open Font License 1.1, Julieta Ulanovsky et contributeurs.
+- [Roboto](https://github.com/google/fonts/tree/main/ofl/roboto) — SIL Open Font License 1.1, Christian Robertson et contributeurs.
 
 Les deux librairies sont figées dans `vendor/` pour garantir le fonctionnement hors ligne
 et la reproductibilité des builds.

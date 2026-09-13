@@ -1,3 +1,22 @@
+/* Polices embarquées, utilisées à l'écran ET intégrées dans le PDF exporté.
+   Instances statiques sous-ensemblées (latin, latin étendu, cyrillique). */
+@font-face{font-family:'Montserrat';src:url('../../vendor/fonts/Montserrat-Regular.ttf') format('truetype');
+  font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:'Montserrat';src:url('../../vendor/fonts/Montserrat-Bold.ttf') format('truetype');
+  font-weight:700;font-style:normal;font-display:swap}
+@font-face{font-family:'Montserrat';src:url('../../vendor/fonts/Montserrat-Italic.ttf') format('truetype');
+  font-weight:400;font-style:italic;font-display:swap}
+@font-face{font-family:'Montserrat';src:url('../../vendor/fonts/Montserrat-BoldItalic.ttf') format('truetype');
+  font-weight:700;font-style:italic;font-display:swap}
+@font-face{font-family:'Roboto';src:url('../../vendor/fonts/Roboto-Regular.ttf') format('truetype');
+  font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:'Roboto';src:url('../../vendor/fonts/Roboto-Bold.ttf') format('truetype');
+  font-weight:700;font-style:normal;font-display:swap}
+@font-face{font-family:'Roboto';src:url('../../vendor/fonts/Roboto-Italic.ttf') format('truetype');
+  font-weight:400;font-style:italic;font-display:swap}
+@font-face{font-family:'Roboto';src:url('../../vendor/fonts/Roboto-BoldItalic.ttf') format('truetype');
+  font-weight:700;font-style:italic;font-display:swap}
+
 /* =========================================================
    EDITION PDF — styles
    Thèmes : html[data-theme="system"|"dark"|"light"]
@@ -45,7 +64,11 @@ textarea{resize:vertical}
 input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid var(--ink);outline-offset:1px}
 label.f{display:block;margin:9px 0 3px;color:var(--muted);font-size:11.5px}
 label.f input[type=checkbox]{width:auto;margin-right:4px;accent-color:var(--ink)}
-.icon{width:36px;padding:6px;flex:0 0 auto}
+.icon{width:36px;padding:2px;flex:0 0 auto;font-size:20px;font-weight:700;line-height:1;
+  letter-spacing:0}
+.icon.glyph-lg{font-size:23px}
+.icon.glyph-sm{font-size:17px}
+.brand svg{stroke-width:2.3}
 
 /* ---------- curseurs (épaisseur, opacité, seuil) ---------- */
 input[type=range]{
@@ -82,12 +105,15 @@ input[type=range]:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 3px var(-
 
 /* ---------- barres ---------- */
 header,.toolbar{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--panel);
-  border-bottom:1px solid var(--line);min-width:0}
+  border-bottom:1px solid var(--line);min-width:0;flex-wrap:wrap}
 header{padding-top:max(8px,env(safe-area-inset-top))}
 .brand{display:flex;align-items:center;gap:8px;font-weight:700;letter-spacing:.4px;font-size:14px;flex:0 0 auto}
 .brand svg{color:var(--ink);flex:0 0 auto}
 .sep{width:1px;height:24px;background:var(--line);flex:0 0 auto}
-.docname{color:var(--muted);flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.docname{color:var(--muted);flex:0 1 auto;min-width:0;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.docname.full{flex:1 0 100%;order:20;max-width:none;overflow:visible;white-space:normal;
+  word-break:break-all;line-height:1.35;padding-top:2px;font-size:12px}
 .spacer{flex:1 1 auto;min-width:2px}
 .pager{display:flex;align-items:center;gap:5px;flex:0 0 auto}
 .pager #pNum{width:54px;text-align:center;font-size:15px;font-weight:600;padding:5px 4px}
@@ -137,6 +163,13 @@ aside.right{border-left:1px solid var(--line)}
 .layer{position:absolute;inset:0;overflow:hidden}
 .item{position:absolute;transform-origin:50% 50%;cursor:move;touch-action:none}
 .item img{width:100%;height:100%;display:block;pointer-events:none;-webkit-user-drag:none}
+.item .hl{width:100%;height:100%;border-radius:1px}
+.item.hl-item{mix-blend-mode:multiply}
+html[data-theme="dark"] .item.hl-item, html[data-theme="system"]:not(.sys-light) .item.hl-item{mix-blend-mode:multiply}
+.band{position:absolute;border:1.5px dashed var(--ink);background:var(--ink-soft);
+  pointer-events:none;border-radius:2px}
+.viewer.hl-mode{cursor:crosshair}
+.viewer.hl-mode .layer{cursor:crosshair}
 .item .txt{width:100%;height:100%;white-space:pre;color:#000;pointer-events:none}
 .item.sel{outline:1px solid var(--ink);outline-offset:1px}
 .item.locked{cursor:default}
@@ -173,6 +206,17 @@ aside.right{border-left:1px solid var(--line)}
 .dot{position:absolute;top:3px;right:3px;width:7px;height:7px;border-radius:50%;background:var(--ink);display:none}
 button.rel{position:relative}
 button.rel.has .dot{display:block}
+
+.settings{margin-top:18px;border-top:1px solid var(--line);padding-top:6px}
+.langsel{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.langsel button{justify-content:flex-start;gap:7px;padding:6px 7px;min-height:34px;
+  font-size:12px;overflow:hidden}
+.langsel button span{overflow:hidden;text-overflow:ellipsis}
+.langsel button.on{border-color:var(--ink);background:var(--ink-soft);color:var(--ink);font-weight:600}
+.flag{width:19px;height:14px;border-radius:2px;flex:0 0 auto;
+  box-shadow:0 0 0 1px rgba(0,0,0,.22) inset}
+.seg{display:flex;gap:5px}
+.seg button{flex:1;font-size:12px;padding:6px 4px}
 
 /* ---------- modales ---------- */
 .mask{position:fixed;inset:0;background:rgba(6,7,12,.72);display:none;align-items:center;

@@ -20,7 +20,7 @@
 <body>
 
 <header>
-  <button id="btnLib" class="icon only-sm" data-i18n-title="nav.library" aria-label="">☰</button>
+  <button id="btnLib" class="icon glyph-lg only-sm" data-i18n-title="nav.library" aria-label="">☰</button>
   <span class="brand hide-sm">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><path d="M3 17c3.5 0 4-11 7.5-11S13 15 15.5 15c1.2 0 2-1 2.5-1.7"/><path d="M3 21h18"/></svg>
     EDITION PDF
@@ -29,11 +29,8 @@
   <button id="btnOpen" class="primary hide-sm" data-i18n="nav.open"></button>
   <button id="btnOpenSm" class="icon only-sm primary" data-i18n-title="nav.open" aria-label="">📂</button>
   <span class="docname" id="docName"></span>
+  <button id="btnClose" class="icon ghost" data-i18n-title="nav.closeDoc" aria-label="" hidden>✕</button>
   <span class="spacer"></span>
-  <button id="btnInstall" class="hide-sm" data-i18n="nav.install" hidden></button>
-  <button id="btnHelp" class="icon" data-i18n-title="nav.help" aria-label="">?</button>
-  <button id="btnLang" class="icon" data-i18n-title="nav.language" aria-label="">🌐</button>
-  <button id="btnTheme" class="icon" data-i18n-title="nav.theme" aria-label="">◐</button>
   <button id="btnExport" class="primary hide-sm" data-i18n="nav.save"></button>
   <button id="btnExportSm" class="icon only-sm primary" data-i18n-title="nav.save" aria-label="">⬇</button>
   <button id="btnInsp" class="icon only-sm rel" data-i18n-title="nav.properties" aria-label="">⚙<span class="dot"></span></button>
@@ -41,25 +38,26 @@
 
 <div class="toolbar">
   <span class="pager">
-    <button id="pPrev" class="icon" data-i18n-title="tool.prev" aria-label="">‹</button>
+    <button id="pPrev" class="icon glyph-lg" data-i18n-title="tool.prev" aria-label="">‹</button>
     <input type="text" id="pNum" value="–" inputmode="numeric" data-i18n-title="tool.pageNumber" aria-label="">
     <span class="tot" id="pTot">/ –</span>
-    <button id="pNext" class="icon" data-i18n-title="tool.next" aria-label="">›</button>
+    <button id="pNext" class="icon glyph-lg" data-i18n-title="tool.next" aria-label="">›</button>
   </span>
   <span class="sep hide-sm"></span>
-  <button id="zOut" class="icon hide-sm" data-i18n-title="tool.zoomOut" aria-label="">−</button>
+  <button id="zOut" class="icon glyph-lg hide-sm" data-i18n-title="tool.zoomOut" aria-label="">−</button>
   <span class="zlbl hide-sm" id="zLbl">100%</span>
-  <button id="zIn" class="icon hide-sm" data-i18n-title="tool.zoomIn" aria-label="">+</button>
+  <button id="zIn" class="icon glyph-lg hide-sm" data-i18n-title="tool.zoomIn" aria-label="">+</button>
   <button id="zFit" class="ghost hide-sm" data-i18n="tool.fit"></button>
   <button id="zFitSm" class="icon only-sm ghost" data-i18n-title="tool.fitLong" aria-label="">⤢</button>
   <span class="sep hide-sm"></span>
-  <button id="btnUndo" class="icon" data-i18n-title="tool.undo" aria-label="">↶</button>
-  <button id="btnRedo" class="icon" data-i18n-title="tool.redo" aria-label="">↷</button>
+  <button id="btnUndo" class="icon glyph-lg" data-i18n-title="tool.undo" aria-label="">↶</button>
+  <button id="btnRedo" class="icon glyph-lg" data-i18n-title="tool.redo" aria-label="">↷</button>
   <span class="spacer"></span>
   <button id="btnText" class="hide-sm" data-i18n="tool.addText"></button>
   <button id="btnTextSm" class="icon only-sm" data-i18n-title="tool.addText" aria-label="">T</button>
   <button id="btnDate" class="ghost hide-sm" data-i18n="tool.todayShort" data-i18n-title="tool.today"></button>
   <button id="btnDateSm" class="icon only-sm ghost" data-i18n-title="tool.today" aria-label="">📅</button>
+  <button id="btnHl" class="icon glyph-lg ghost" data-i18n-title="tool.highlight" aria-label="">▧</button>
 </div>
 
 <main>
@@ -94,7 +92,10 @@
       <h2 data-i18n="nav.properties"></h2>
       <button id="closeInsp" class="icon ghost only-sm" data-i18n-title="nav.close" aria-label="">✕</button>
     </div>
-    <div class="pane-body" id="insp"></div>
+    <div class="pane-body">
+      <div id="insp"></div>
+      <div class="settings" id="settings"></div>
+    </div>
     <div class="pane-foot" style="flex-direction:column;gap:6px;align-items:stretch">
       <div class="chip" data-i18n="insp.items"></div>
       <div class="list" id="itemList"></div>
@@ -112,6 +113,7 @@
 
 <script src="vendor/pdf.min.js"></script>
 <script src="vendor/pdf-lib.min.js"></script>
+<script src="vendor/fontkit.umd.min.js"></script>
 <script src="assets/js/i18n.js"></script>
 <script src="assets/js/app.js"></script>
 </body>
