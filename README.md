@@ -26,14 +26,21 @@ Installable sur ordinateur et sur mobile (Android / iOS), utilisable hors ligne.
 
 **Édition**
 - Rendu fidèle par pdf.js, navigation par page, zoom (boutons, Ctrl + molette, pincement).
+- **Ajustement plein écran** : à l'ouverture, au changement de page et à la rotation de l'appareil,
+  l'échelle est calculée sur la largeur *et* la hauteur pour que la page tienne entièrement,
+  sans aucun défilement. Le calcul automatique se désactive dès que l'on zoome à la main.
 - Pose d'une image ou d'un texte, déplacement, redimensionnement, rotation libre,
   réglage de l'opacité, changement de page.
 - Texte : Helvetica / Times / Courier, gras, italique, corps, couleur, multi-lignes,
   bouton « Date » pour insérer la date du jour.
 - **Valider la position** verrouille l'élément ; on peut alors en poser un autre, puis
   déverrouiller à tout moment.
-- Annulation (Ctrl+Z, 60 niveaux), déplacement au clavier (flèches, Maj = 10 pt),
-  suppression (Suppr), liste récapitulative de tous les éléments du document.
+- **Annulation et rétablissement** sur 80 niveaux (boutons ↶ ↷, Ctrl+Z, Ctrl+Maj+Z, Ctrl+Y).
+  L'état sauvegardé comprend la sélection courante, de sorte qu'un retour en arrière
+  ramène aussi sur la bonne page.
+- Corbeille directement sur l'élément sélectionné et sur chaque ligne de la liste récapitulative,
+  en plus de la touche Suppr et du bouton de l'inspecteur.
+- Déplacement au clavier (flèches, Maj = 10 pt).
 
 **Export**
 - Génération par pdf-lib à partir du PDF d'origine (structure, signets et champs conservés).
@@ -41,8 +48,15 @@ Installable sur ordinateur et sur mobile (Android / iOS), utilisable hors ligne.
   téléchargement classique en repli.
 
 **Interface**
+- **Sept langues** : français, anglais, allemand, espagnol, italien, ukrainien, tchèque.
+  Détection depuis `navigator.languages` au premier lancement, choix manuel par le bouton 🌐,
+  bascule à chaud sans rechargement.
+- **Écran d'accueil** au premier lancement : quatre étapes d'usage et la marche à suivre pour
+  installer l'application sur Android, iOS et ordinateur. Réaffichable par le bouton ?,
+  masquable définitivement.
 - Thème **sombre / clair / système**, mémorisé sur l'appareil (bouton ◐ de la barre supérieure).
-- Disposition adaptative : sur mobile, la bibliothèque et l'inspecteur deviennent des tiroirs.
+- Disposition adaptative : sur mobile, la bibliothèque et l'inspecteur deviennent des tiroirs,
+  la barre d'outils se replie sur des icônes et ne défile jamais horizontalement.
 - PWA : installable, hors ligne, gestionnaire de fichiers `.pdf` sur les navigateurs
   qui le supportent (Chrome / Edge desktop).
 
@@ -125,6 +139,7 @@ pdf_editor/
 ├── assets/
 │   ├── css/app.css             # thèmes clair/sombre + responsive
 │   ├── js/app.js               # toute la logique applicative
+│   ├── js/i18n.js              # 7 langues, détection et bascule à chaud
 │   ├── js/theme-boot.js        # thème appliqué avant le premier rendu
 │   └── icons/                  # icônes 192/512, maskable, apple-touch, favicon
 └── vendor/
@@ -162,6 +177,13 @@ pdf.js détache le `ArrayBuffer` qu'on lui transmet, il ne peut donc pas être p
 
 **Mise à jour du service worker.** Incrémenter `CACHE_VERSION` dans `sw.js` à chaque
 livraison, sinon les anciens fichiers restent servis depuis le cache.
+
+**Traductions.** `assets/js/i18n.js` contient un dictionnaire plat par langue. Les chaînes
+comptables sont formulées « Libellé : {n} » plutôt qu'avec un pluriel accordé : cela évite
+d'embarquer les règles de pluriel du tchèque et de l'ukrainien (1 / 2-4 / 5 et plus).
+Le balisage statique est traduit par les attributs `data-i18n`, `data-i18n-title` et
+`data-i18n-ph` ; le contenu dynamique passe par `t(clé, variables)`. Ajouter une langue
+revient à copier un bloc et à l'inscrire dans `LANGS`.
 
 **Authentification.** L'application ne gère aucun compte et GitHub Pages n'offre aucun
 contrôle d'accès : l'URL est publique. Les documents et la bibliothèque, eux, ne sont jamais
