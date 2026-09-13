@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
 <title>EDITION PDF</title>
 <meta name="description" content="Édition de PDF hors ligne : signatures, images et textes posés sur vos documents, sans envoi de fichier.">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; form-action 'none'; script-src 'self'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; font-src 'self'; connect-src 'self'; manifest-src 'self'; object-src 'none'">
 <meta name="theme-color" content="#1f2230" id="metaTheme">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -56,6 +57,7 @@
   <aside class="left" id="paneLib">
     <div class="pane-head">
       <h2>Bibliothèque</h2>
+      <button id="btnWipe" class="icon ghost" title="Effacer toute la bibliothèque">🧹</button>
       <button id="btnVault" class="icon ghost" title="Protection par mot de passe">🔒</button>
       <button id="closeLib" class="icon ghost only-sm" aria-label="Fermer">✕</button>
     </div>

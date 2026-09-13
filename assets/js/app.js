@@ -88,6 +88,7 @@ async function dbGetAll(st){ const d=await db(); return req(d.transaction(st,'re
 async function dbGet(st,k){ const d=await db(); return req(d.transaction(st,'readonly').objectStore(st).get(k)); }
 async function dbPut(st,v){ const d=await db(); return req(d.transaction(st,'readwrite').objectStore(st).put(v)); }
 async function dbDel(st,k){ const d=await db(); return req(d.transaction(st,'readwrite').objectStore(st).delete(k)); }
+async function dbClear(st){ const d=await db(); return req(d.transaction(st,'readwrite').objectStore(st).clear()); }
 
 const Vault = {
   enabled:false, key:null, salt:null, verifier:null,
@@ -378,6 +379,74 @@ $('#btnDraw').onclick = ()=>{
     closeModal(); toast('Signature ajoutée','ok');
   };
 };
+
+/* --- effacement total de la bibliothèque ---------------------------------
+   Deux parcours distincts, confirmés dans les deux cas :
+   - coffre déverrouillé (ou absent) : on sait ce qu'on supprime, confirmation
+     simple, la protection par mot de passe peut être conservée ;
+   - coffre verrouillé : le contenu n'est pas lisible, donc la confirmation
+     exige une saisie explicite, et la protection est nécessairement retirée
+     (garder un mot de passe sur un coffre vide empêcherait d'y remettre
+     quoi que ce soit, puisque le chiffrement exige la clé de session). */
+$('#btnWipe').onclick = wipeLibrary;
+
+async function wipeLibrary(){
+  let n = Lib.assets.length;
+  if(Vault.locked){ try{ n = (await dbGetAll('assets')).length; }catch(e){ n = null; } }
+  if(!n && !Vault.enabled){ toast('La bibliothèque est déjà vide'); return; }
+
+  const placed = Doc.items.filter(i=>i.type==='image').length;
+  const warnPlaced = placed
+    ? `<br><br>${placed} élément(s) déjà posé(s) sur le document perdront leur image et ne pourront plus être exportés.`
+    : '';
+  const count = n===null ? 'Toutes les images' : `${n} image(s)`;
+
+  if(Vault.locked){
+    modal(`<h3>Effacer toute la bibliothèque ?</h3>
+      <p>Le coffre est verrouillé : ${count.toLowerCase()} chiffrée(s) vont être supprimée(s)
+      <strong>sans que leur contenu ait pu être vérifié</strong>. La protection par mot de passe
+      sera également retirée, faute de quoi la bibliothèque resterait inutilisable.
+      L'opération est définitive et ne peut pas être annulée.${warnPlaced}</p>
+      <label class="f">Saisissez <strong>EFFACER</strong> pour confirmer</label>
+      <input type="text" id="wConf" autocomplete="off" autocapitalize="characters" spellcheck="false">
+      <div class="foot"><button onclick="closeModal()">Annuler</button>
+        <button class="primary" id="wok" disabled>Effacer définitivement</button></div>`);
+    const check = ()=>{ $('#wok').disabled = $('#wConf').value.trim().toUpperCase() !== 'EFFACER'; };
+    $('#wConf').oninput = check;
+    $('#wConf').onkeydown = e=>{ if(e.key==='Enter' && !$('#wok').disabled) $('#wok').click(); };
+    $('#wok').onclick = ()=>doWipe(true);
+    $('#wConf').focus();
+  } else {
+    modal(`<h3>Effacer toute la bibliothèque ?</h3>
+      <p>${count} vont être supprimée(s) de cet appareil. L'opération est définitive
+      et ne peut pas être annulée.${warnPlaced}</p>
+      ${Vault.enabled ? `<label class="f"><input type="checkbox" id="wProt" style="width:auto">
+        Retirer aussi la protection par mot de passe</label>` : ''}
+      <div class="foot"><button onclick="closeModal()">Annuler</button>
+        <button class="primary" id="wok">Effacer définitivement</button></div>`);
+    $('#wok').onclick = ()=>doWipe(Vault.enabled && $('#wProt').checked);
+  }
+}
+
+async function doWipe(dropProtection){
+  $('#wok').disabled = true;
+  try{
+    await dbClear('assets');
+    revokeUrls();
+    if(dropProtection){
+      await dbDel('meta','crypto');
+      Object.assign(Vault, {enabled:false, key:null, salt:null, verifier:null});
+    }
+    closeModal();
+    await libLoad();
+    drawItems();
+    toast('Bibliothèque effacée','ok');
+  }catch(err){
+    console.error(err);
+    toast('Échec de l\'effacement : '+err.message,'err');
+    const b=$('#wok'); if(b) b.disabled=false;
+  }
+}
 
 /* --- coffre --- */
 $('#btnVault').onclick = ()=>{
@@ -913,39 +982,6 @@ if('serviceWorker' in navigator && location.protocol.startsWith('http')){
     }catch(e){ console.warn('Service worker non enregistré :', e.message); }
   });
 }
-/* --- session d'authentification (Cloudflare Access ou équivalent) ---------
-   Quand la session expire, le proxy répond par une redirection cross-origin
-   vers la page de connexion : les fetch de l'application échouent en silence
-   et le service worker sert le cache, donnant l'illusion que tout va bien.
-   On sonde donc l'origine avec redirect:'manual' ; ?ping=1 court-circuite le
-   service worker (voir sw.js). Un rechargement en navigation de premier niveau
-   déclenche le flux de connexion normalement. */
-let sessionWarned = false;
-async function checkSession(){
-  if(!location.protocol.startsWith('http') || !navigator.onLine || sessionWarned) return;
-  try{
-    const r = await fetch('manifest.webmanifest?ping=1', {cache:'no-store', redirect:'manual', credentials:'same-origin'});
-    if(r.type==='opaqueredirect' || r.status===302 || r.status===401 || r.status===403) sessionExpired();
-  }catch(e){ /* hors ligne : rien à signaler */ }
-}
-function sessionExpired(){
-  if(sessionWarned) return;
-  sessionWarned = true;
-  const pending = Doc.items.length;
-  modal(`<h3>Session expirée</h3>
-    <p>La session d'authentification n'est plus valide. L'application continue de fonctionner
-    hors ligne, mais elle ne peut plus se mettre à jour.${pending
-      ? ' <strong>Enregistrez votre PDF avant de recharger</strong> : les éléments posés ne sont pas conservés.'
-      : ''}</p>
-    <div class="foot">
-      <button onclick="closeModal()">Plus tard</button>
-      <button class="primary" id="sReload">Se reconnecter</button></div>`);
-  $('#sReload').onclick = ()=> location.reload();
-}
-addEventListener('visibilitychange', ()=>{ if(!document.hidden) checkSession(); });
-addEventListener('online', checkSession);
-setInterval(checkSession, 15*60*1000);
-
 /* ouverture depuis le système de fichiers (file_handlers) */
 if('launchQueue' in window){
   launchQueue.setConsumer(async lp=>{
@@ -963,7 +999,6 @@ addEventListener('resize', ()=>{ if(Doc.pdf){ clearTimeout(Doc.rt); Doc.rt=setTi
 (async function boot(){
   if(new URLSearchParams(location.search).get('action')==='open')
     setTimeout(()=>{ try{ $('#filePdf').click(); }catch(e){} }, 400);
-  setTimeout(checkSession, 3000);
   try{
     await Vault.init();
     await libLoad();

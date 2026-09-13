@@ -3,14 +3,12 @@
    Stratégie : precache de l'app shell, cache-first, réseau en repli.
    Incrémentez CACHE_VERSION à chaque livraison pour forcer la mise à jour.
 
-   Point d'attention derrière un proxy d'authentification (Cloudflare Access,
-   Entra ID App Proxy…) : quand la session expire, l'origine répond par une
-   redirection vers la page de connexion. Cette réponse ne doit JAMAIS entrer
-   dans le cache, sinon l'application sert du HTML de connexion à la place de
-   ses propres fichiers. Toutes les écritures en cache sont donc filtrées sur
-   `res.ok && !res.redirected && res.type === 'basic'`.
+   Les écritures en cache sont filtrées sur `res.ok && !res.redirected &&
+   res.type === 'basic'` : si un jour l'application passe derrière un portail
+   d'authentification, une page de connexion renvoyée par redirection n'entrera
+   jamais dans le cache à la place des fichiers de l'application.
    ===================================================================== */
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3';
 const CACHE = 'pdfed-' + CACHE_VERSION;
 
 const SHELL = [
@@ -58,9 +56,6 @@ self.addEventListener('fetch', e=>{
   if(req.method !== 'GET') return;
   const url = new URL(req.url);
   if(url.origin !== location.origin) return;
-
-  // Sonde de session : toujours réseau, jamais de cache (voir checkSession dans app.js)
-  if(url.searchParams.has('ping')) return;
 
   // Navigations : réseau d'abord, repli sur le cache quand on est hors ligne
   if(req.mode === 'navigate'){

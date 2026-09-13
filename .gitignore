@@ -23,13 +23,10 @@ npm-debug.log*
 patch-v*.zip
 *.tgz
 
-# Cloudflare / Wrangler
-.wrangler/
-.dev.vars
-
 # Environnement
 .env
 .env.local
 
-# NB : vendor/ est volontairement versionné (pdf.js et pdf-lib figés,
-# nécessaires au fonctionnement hors ligne de la PWA).
+# NB : vendor/ et .nojekyll sont volontairement versionnés.
+# vendor/ contient pdf.js et pdf-lib figés, nécessaires au hors ligne ;
+# .nojekyll empêche GitHub Pages de faire passer le site par Jekyll.

@@ -17,6 +17,9 @@ Installable sur ordinateur et sur mobile (Android / iOS), utilisable hors ligne.
 - Détourage du fond pour les signatures scannées (seuil de clarté, alpha progressif,
   option « encre en noir »).
 - Renommer, dupliquer via le document, télécharger, supprimer.
+- **Effacement total de la bibliothèque**, avec une confirmation adaptée à l'état du coffre :
+  simple quand le contenu est visible, saisie explicite de `EFFACER` quand il est verrouillé
+  (puisqu'on supprime alors des données qu'on ne peut pas vérifier).
 - **Chiffrement optionnel au repos** : AES-GCM 256, clé dérivée par PBKDF2-SHA256
   (250 000 itérations, sel aléatoire de 16 octets). Le mot de passe n'est jamais persisté ;
   la clé ne vit qu'en mémoire pendant la session.
@@ -59,7 +62,7 @@ python3 -m http.server 8080
 ```
 
 Alternatives : `npx serve .`, `php -S localhost:8080`, ou tout hébergeur statique
-(GitHub Pages, Netlify, Cloudflare Pages, nginx…).
+(GitHub Pages, Netlify, Cloudflare, nginx…).
 
 > **HTTPS obligatoire en production.** Les service workers et l'installation PWA ne sont
 > autorisés que sur `https://` ou `http://localhost`.
@@ -71,81 +74,40 @@ Alternatives : `npx serve .`, `php -S localhost:8080`, ou tout hébergeur statiq
 
 ---
 
-## Déploiement sur Cloudflare
+## Déploiement sur GitHub Pages
 
-Cloudflare recommande depuis 2026 les **Workers avec static assets** plutôt que Pages pour
-les nouveaux projets ; c'est ce que configure `wrangler.jsonc`. Aucun code serveur n'est
-déployé : le Worker ne sert que des fichiers statiques, et ces requêtes ne sont pas facturées.
+Le dépôt est publiable tel quel : aucune étape de build, tous les chemins sont relatifs,
+l'application fonctionne donc aussi bien à la racine d'un domaine que dans un sous-chemin
+du type `https://<compte>.github.io/pdf_editor/`.
 
-```bash
-npm install -g wrangler        # ou npx wrangler …
-wrangler login
-wrangler deploy                # première exécution : crée le Worker "pdf-editor"
-```
+**Option A — sans workflow.** Settings → Pages → Build and deployment → Source =
+*Deploy from a branch*, branche `main`, dossier `/ (root)`. Supprimez alors
+`.github/workflows/deploy.yml`. Le fichier `.nojekyll` reste indispensable : sans lui,
+GitHub Pages fait passer le site par Jekyll.
 
-`.assetsignore` empêche la publication de `README.md`, `wrangler.jsonc`, `.github/` et
-consorts. `_headers` est interprété par la plateforme puis exclu des fichiers servis.
+**Option B — avec workflow (fourni).** Settings → Pages → Source = *GitHub Actions*.
+Le workflow publie le dépôt à chaque push sur `main` ; Jekyll n'intervient pas du tout.
 
-**Intégration continue.** Deux options exclusives :
-- *Workers Builds* : connectez le dépôt depuis le dashboard Cloudflare (Workers & Pages →
-  le Worker → Settings → Build). Rien à ajouter dans le dépôt ; supprimez alors
-  `.github/workflows/deploy.yml`.
-- *GitHub Actions* : le workflow fourni utilise `cloudflare/wrangler-action@v4`. Créez les
-  secrets `CLOUDFLARE_API_TOKEN` (permission « Workers Scripts: Edit ») et
-  `CLOUDFLARE_ACCOUNT_ID`.
+Dans les deux cas, cochez **Enforce HTTPS** : le service worker, l'installation de la PWA
+et l'API Web Crypto exigent un contexte sécurisé.
 
-**Domaine.** Ajoutez un domaine personnalisé (Worker → Settings → Domains & Routes). Le
-sous-domaine `*.workers.dev` fonctionne mais n'est pas protégeable par Access : utilisez un
-hostname de votre zone.
+### Ce que GitHub Pages ne sait pas faire
 
-### Restreindre l'accès (Cloudflare Access)
-
-Zero Trust est gratuit jusqu'à 50 utilisateurs et suffit largement ici.
-
-1. Zero Trust → Settings → Authentication : ajoutez un fournisseur d'identité (Google
-   Workspace, Entra ID, GitHub…) ou gardez le **One-time PIN** par e-mail.
-2. Access → Applications → *Add an application* → **Self-hosted**, hostname =
-   le domaine du Worker.
-3. Politique *Allow* : `Emails` avec la liste nominative, ou `Emails ending in @votre-domaine`.
-   Ajoutez une politique *Block* explicite en dernier recours si vous exposez plusieurs chemins.
-4. Durée de session : **24 h minimum**. Une session courte est pénible sur une application
-   installée, chaque expiration renvoyant vers l'écran de connexion.
-5. Vérifiez en navigation privée que l'URL redirige bien vers l'écran d'authentification.
-
-### Cohabitation Access ↔ service worker
-
-Quand la session Access expire, l'origine répond par une redirection cross-origin vers
-`https://<équipe>.cloudflareaccess.com/…`. Deux conséquences, traitées dans le code :
-
-- **Le cache ne doit pas avaler la page de connexion.** `sw.js` filtre toutes ses écritures
-  sur `res.ok && !res.redirected && res.type === 'basic'` : une réponse de connexion n'entre
-  jamais en cache, sinon l'application servirait du HTML d'authentification à la place de
-  ses propres fichiers, sans moyen de s'en sortir autrement qu'en vidant le stockage.
-- **L'expiration doit être visible.** `checkSession()` sonde l'origine avec
-  `redirect:'manual'` sur `manifest.webmanifest?ping=1` (le `?ping=1` court-circuite le
-  service worker) au démarrage, au retour au premier plan, au retour en ligne et toutes les
-  15 minutes. Une redirection opaque déclenche une invite de reconnexion, en avertissant de
-  sauvegarder le PDF en cours puisque les éléments posés ne sont pas persistés.
-
-### En-têtes et CSP
-
-`_headers` applique HSTS, `nosniff`, `Referrer-Policy: no-referrer`, une `Permissions-Policy`
-restrictive et une CSP `default-src 'none'` avec `frame-ancestors 'none'`.
-
-- `script-src 'self'` sans `'unsafe-inline'` : le script d'amorçage du thème a été sorti dans
-  `assets/js/theme-boot.js` exprès pour cela.
-- `style-src` conserve `'unsafe-inline'` : l'interface utilise des attributs `style` dans son
-  balisage, qui sont bloqués sans cette directive.
-- Pas de `'unsafe-eval'` : `getDocument` est appelé avec `isEvalSupported: false`, pdf.js
-  bascule alors sur son interpréteur pour les fonctions PostScript.
-- `img-src` autorise `blob:` (URLs d'objet des signatures) et `connect-src 'self'` couvre la
-  sonde de session.
-
-HSTS peut aussi être activé au niveau de la zone (SSL/TLS → Edge Certificates). Ne l'activez
-avec `preload` qu'une fois certain que tous les sous-domaines sont en HTTPS.
-
-Côté zone, complétez avec : mode SSL **Full (strict)**, *Always Use HTTPS*, et une règle WAF
-de limitation de débit si le hostname est public avant la mise en place d'Access.
+- **Pas d'en-têtes HTTP personnalisés.** Il n'existe pas d'équivalent de `_headers`.
+  La politique de sécurité de contenu est donc déclarée en `<meta http-equiv>` dans
+  `index.html`. Conséquence à connaître : la directive `frame-ancestors` est ignorée
+  lorsqu'elle est fournie par balise `meta`, l'application n'est donc pas protégée contre
+  l'inclusion dans une iframe tierce. Le reste de la CSP (`default-src 'none'`,
+  `script-src 'self'` sans `unsafe-inline` ni `unsafe-eval`) s'applique normalement.
+- **Pas de contrôle du cache.** GitHub Pages impose ses propres en-têtes ; une nouvelle
+  livraison peut mettre quelques minutes à être vue par un navigateur qui a déjà chargé
+  le site. Le service worker prend le relais ensuite, à condition d'incrémenter
+  `CACHE_VERSION` dans `sw.js` à chaque livraison.
+- **Pas de contrôle d'accès.** Un site GitHub Pages est public, y compris depuis un dépôt
+  privé sur la plupart des formules. Il n'y a pas d'équivalent de Cloudflare Access.
+  Ce n'est pas un problème de confidentialité des documents — les PDF et la bibliothèque
+  ne quittent jamais l'appareil — mais l'outil lui-même est accessible à quiconque
+  connaît l'URL.
 
 ---
 
@@ -156,9 +118,7 @@ pdf_editor/
 ├── index.html                  # coquille de l'application
 ├── manifest.webmanifest        # métadonnées PWA, icônes, file_handlers
 ├── sw.js                       # service worker (precache, cache-first)
-├── _headers                    # en-têtes de sécurité et de cache (Cloudflare)
-├── wrangler.jsonc              # Worker "assets only"
-├── .assetsignore               # fichiers du dépôt non publiés
+├── .nojekyll                   # désactive le traitement Jekyll
 ├── .github/workflows/deploy.yml
 ├── README.md
 ├── .gitignore
@@ -203,9 +163,15 @@ pdf.js détache le `ArrayBuffer` qu'on lui transmet, il ne peut donc pas être p
 **Mise à jour du service worker.** Incrémenter `CACHE_VERSION` dans `sw.js` à chaque
 livraison, sinon les anciens fichiers restent servis depuis le cache.
 
-**Authentification.** L'application ne gère aucun compte : l'accès est filtré en amont par le
-proxy (Cloudflare Access). Le contenu de la bibliothèque, lui, reste chiffré côté navigateur
-et n'est jamais transmis — un administrateur Cloudflare ne peut pas le lire.
+**Authentification.** L'application ne gère aucun compte et GitHub Pages n'offre aucun
+contrôle d'accès : l'URL est publique. Les documents et la bibliothèque, eux, ne sont jamais
+transmis — ils restent dans le navigateur, chiffrés au repos si la protection est activée.
+Pour restreindre l'accès à l'outil lui-même, il faut un hébergement offrant une couche
+d'authentification en amont.
+
+**Effacement de la bibliothèque.** Quand le coffre est verrouillé, l'effacement retire aussi
+la protection par mot de passe : conserver un mot de passe sur un coffre vide empêcherait
+d'y remettre quoi que ce soit, le chiffrement d'un nouvel élément exigeant la clé de session.
 
 ---
 

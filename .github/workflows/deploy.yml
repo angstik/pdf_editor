@@ -1,11 +1,10 @@
-# Déploiement sur Cloudflare Workers à chaque push sur main.
-# Alternative : Workers Builds (connexion Git native depuis le dashboard Cloudflare),
-# auquel cas ce workflow est inutile.
+# Publication du site sur GitHub Pages à chaque push sur main.
 #
-# Secrets à créer dans GitHub (Settings > Secrets and variables > Actions) :
-#   CLOUDFLARE_API_TOKEN   jeton avec la permission "Workers Scripts: Edit"
-#   CLOUDFLARE_ACCOUNT_ID  identifiant de compte Cloudflare
-name: Deploy
+# Prérequis : Settings > Pages > Build and deployment > Source = "GitHub Actions".
+# Alternative sans workflow : Source = "Deploy from a branch" (main / root) ;
+# dans ce cas, supprimez ce fichier. Le fichier .nojekyll reste nécessaire pour
+# que Jekyll ne retraite pas le contenu.
+name: Deploy to GitHub Pages
 
 on:
   push:
@@ -14,16 +13,37 @@ on:
 
 permissions:
   contents: read
+  pages: write
+  id-token: write
+
+# Un seul déploiement à la fois, sans annuler celui en cours.
+concurrency:
+  group: pages
+  cancel-in-progress: false
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v6
-      - name: Deploy to Cloudflare Workers
-        uses: cloudflare/wrangler-action@v4
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      # Le dépôt est publié tel quel : pas d'étape de build.
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v4
         with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy
+          path: "."
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
