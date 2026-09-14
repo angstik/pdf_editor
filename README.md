@@ -6,7 +6,7 @@ fichier n'est envoyé sur un serveur, aucune dépendance réseau après la premi
 
 Installable sur ordinateur et sur mobile (Android / iOS), utilisable hors ligne.
 
----
+---  
 
 ## Fonctionnalités
 
