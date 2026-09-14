@@ -12,6 +12,10 @@ const I18N = {
 /* ------------------------------------------------------------------ FR */
 fr:{
 locale:'fr-FR',
+'t.cmtFound':"Commentaires déjà présents : {n} — la numérotation reprend à {next}",
+'nav.settings':"Réglages",
+'exp.annexMore':"Commentaires (suite)",
+'t.cmtFound':"Commentaires déjà présents : {n}",
 'm.textTitle':"Ajouter du texte",
 'm.textPh':"Votre texte…",
 'm.insDate':"Date",
@@ -136,6 +140,10 @@ locale:'fr-FR',
 /* ------------------------------------------------------------------ EN */
 en:{
 locale:'en-GB',
+'t.cmtFound':"Comments already present: {n} — numbering resumes at {next}",
+'nav.settings':"Settings",
+'exp.annexMore':"Comments (continued)",
+'t.cmtFound':"Existing comments found: {n}",
 'm.textTitle':"Add text",
 'm.textPh':"Your text…",
 'm.insDate':"Date",
@@ -260,6 +268,10 @@ locale:'en-GB',
 /* ------------------------------------------------------------------ DE */
 de:{
 locale:'de-DE',
+'t.cmtFound':"Bereits vorhandene Kommentare: {n} — Nummerierung läuft ab {next} weiter",
+'nav.settings':"Einstellungen",
+'exp.annexMore':"Kommentare (Fortsetzung)",
+'t.cmtFound':"Bereits vorhandene Kommentare: {n}",
 'm.textTitle':"Text hinzufügen",
 'm.textPh':"Ihr Text…",
 'm.insDate':"Datum",
@@ -385,6 +397,10 @@ locale:'de-DE',
 /* ------------------------------------------------------------------ ES */
 es:{
 locale:'es-ES',
+'t.cmtFound':"Comentarios ya presentes: {n} — la numeración continúa en {next}",
+'nav.settings':"Ajustes",
+'exp.annexMore':"Comentarios (continuación)",
+'t.cmtFound':"Comentarios ya presentes: {n}",
 'm.textTitle':"Añadir texto",
 'm.textPh':"Su texto…",
 'm.insDate':"Fecha",
@@ -509,6 +525,10 @@ locale:'es-ES',
 /* ------------------------------------------------------------------ IT */
 it:{
 locale:'it-IT',
+'t.cmtFound':"Commenti già presenti: {n} — la numerazione riprende da {next}",
+'nav.settings':"Impostazioni",
+'exp.annexMore':"Commenti (continua)",
+'t.cmtFound':"Commenti già presenti: {n}",
 'm.textTitle':"Aggiungi testo",
 'm.textPh':"Il tuo testo…",
 'm.insDate':"Data",
@@ -633,6 +653,10 @@ locale:'it-IT',
 /* ------------------------------------------------------------------ UK */
 uk:{
 locale:'uk-UA',
+'t.cmtFound':"Уже наявних коментарів: {n} — нумерація продовжиться з {next}",
+'nav.settings':"Налаштування",
+'exp.annexMore':"Коментарі (продовження)",
+'t.cmtFound':"Уже наявних коментарів: {n}",
 'm.textTitle':"Додати текст",
 'm.textPh':"Ваш текст…",
 'm.insDate':"Дата",
@@ -757,6 +781,10 @@ locale:'uk-UA',
 /* ------------------------------------------------------------------ CS */
 cs:{
 locale:'cs-CZ',
+'t.cmtFound':"Již přítomné komentáře: {n} — číslování pokračuje od {next}",
+'nav.settings':"Nastavení",
+'exp.annexMore':"Komentáře (pokračování)",
+'t.cmtFound':"Již přítomné komentáře: {n}",
 'm.textTitle':"Přidat text",
 'm.textPh':"Váš text…",
 'm.insDate':"Datum",

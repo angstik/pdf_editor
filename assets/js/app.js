@@ -94,7 +94,7 @@ function applyTheme(th){
   localStorage.setItem('pdfed.theme', th);
   const light = th==='light' || (th==='system' && mqLight.matches);
   $('#metaTheme').content = light ? '#f5f6fa' : '#1f2230';
-  if($('#settings').innerHTML) renderSettings();
+  if($('#themeSeg')) showSettingsModal();   // rafraîchit le segment actif
 }
 mqLight.addEventListener('change', ()=>{ if(curTheme()==='system') applyTheme('system'); });
 applyTheme(curTheme());
@@ -115,39 +115,50 @@ const FLAGS = {
 };
 const flagSvg = code => `<svg class="flag" viewBox="0 0 19 14" aria-hidden="true">${FLAGS[code]||''}</svg>`;
 
-/* Réglages : langue, thème, aide et installation vivent dans le panneau Propriétés. */
-function renderSettings(){
-  const box = $('#settings');
-  box.innerHTML = `
-    <h4>${esc(t('insp.settings'))}</h4>
-    <label class="f">${esc(t('nav.language'))}</label>
+/* Réglages et langue : deux fenêtres ouvertes depuis la première ligne du
+   panneau Propriétés, qui reste ainsi entièrement dédiée à l'élément choisi. */
+function updateFlag(){ $('#btnLangP').innerHTML = flagSvg(LANG); }
+
+function showLangModal(){
+  modal(`<h3>${esc(t('nav.language'))}</h3>
     <div class="langsel" id="langSel">
       ${LANGS.map(l=>`<button data-l="${l.code}" class="${l.code===LANG?'on':''}">
         ${flagSvg(l.code)}<span>${esc(l.label)}</span></button>`).join('')}
     </div>
-    <label class="f">${esc(t('nav.theme'))}</label>
-    <div class="seg" id="themeSeg">
-      ${THEMES.map(th=>`<button data-t="${th}" class="${th===curTheme()?'on':''}">
-        ${esc(t(th==='system'?'nav.themeSystem':th==='light'?'nav.themeLight':'nav.themeDark'))}</button>`).join('')}
+    <div class="foot"><button class="primary" data-close>${esc(t('m.close'))}</button></div>`);
+  $$('#langSel button').forEach(b=> b.onclick = ()=>{ setLang(b.dataset.l); closeModal(); });
+}
+
+function showSettingsModal(){
+  modal(`<h3>${esc(t('nav.settings'))}</h3>
+    <div class="settings">
+      <label class="f">${esc(t('nav.theme'))}</label>
+      <div class="seg" id="themeSeg">
+        ${THEMES.map(th=>`<button data-t="${th}" class="${th===curTheme()?'on':''}">
+          ${esc(t(th==='system'?'nav.themeSystem':th==='light'?'nav.themeLight':'nav.themeDark'))}</button>`).join('')}
+      </div>
+      <label class="f">${esc(t('nav.language'))}</label>
+      <div class="row"><button id="setLangBtn" style="justify-content:flex-start;gap:8px">
+        ${flagSvg(LANG)}<span>${esc((LANGS.find(l=>l.code===LANG)||{}).label||LANG)}</span></button></div>
+      <div class="row" style="margin-top:12px"><button id="setHelp">${esc(t('nav.help'))}</button></div>
+      <div class="row" style="margin-top:6px${deferredPrompt?'':';display:none'}">
+        <button id="setInstall" class="primary">${esc(t('nav.install'))}</button></div>
     </div>
-    <div class="row" style="margin-top:12px">
-      <button id="setHelp">${esc(t('nav.help'))}</button>
-    </div>
-    <div class="row" style="margin-top:6px${deferredPrompt?'':';display:none'}">
-      <button id="setInstall" class="primary">${esc(t('nav.install'))}</button>
-    </div>`;
-  $$('#langSel button').forEach(b=> b.onclick = ()=>setLang(b.dataset.l));
+    <div class="foot"><button class="primary" data-close>${esc(t('m.close'))}</button></div>`);
   $$('#themeSeg button').forEach(b=> b.onclick = ()=>applyTheme(b.dataset.t));
+  $('#setLangBtn').onclick = showLangModal;
   $('#setHelp').onclick = ()=>showSplash(false);
   $('#setInstall').onclick = doInstall;
 }
+$('#btnSet').onclick  = showSettingsModal;
+$('#btnLangP').onclick = showLangModal;
 
 /* appelée par i18n.js après chaque changement de langue */
 function onLangChange(){
   $('#docName').textContent = Doc.name || t('nav.noDoc');
   fitDocName();
   libRender();
-  renderSettings();
+  updateFlag();
   drawItems();
   if(Doc.pdf) $('#pTot').textContent = '/ ' + Doc.total;
 }
@@ -576,7 +587,7 @@ $('#btnVault').onclick = ()=>{
 const Doc = {
   bytes:null, name:'', pdf:null, page:1, total:0,
   scale:1, viewport:null, autoFit:true,
-  vp1:new Map(), rot:new Map(), text:new Map(), mode:null,
+  vp1:new Map(), rot:new Map(), text:new Map(), mode:null, cmtOffset:0,
   items:[], sel:null, undo:[], redo:[], renderTask:null, rt:null
 };
 
@@ -612,6 +623,7 @@ async function loadPdf(file){
     fitDocName();
     await fitPage();
     toast(t('t.docLoaded',{n:Doc.total}),'ok');
+    scanComments();
   }catch(err){ console.error(err); toast(t('t.readFail',{e:err.message}),'err'); }
 }
 
@@ -628,7 +640,7 @@ function closeDoc(){
 }
 function doCloseDoc(){
   Object.assign(Doc, {pdf:null, bytes:null, name:'', page:1, total:0,
-    items:[], sel:null, undo:[], redo:[], viewport:null, autoFit:true});
+    items:[], sel:null, undo:[], redo:[], viewport:null, autoFit:true, cmtOffset:0});
   Doc.vp1.clear(); Doc.rot.clear(); Doc.text.clear();
   setMode(null);
   $('#stage').hidden = true; $('#hint').hidden = false; $('#btnClose').hidden = true;
@@ -636,6 +648,32 @@ function doCloseDoc(){
   $('#pTot').textContent = '/ –'; $('#pNum').value = '–'; $('#zLbl').textContent = '100%';
   drawItems();
   toast(t('t.docClosed'));
+}
+
+/* Reprise d'un document déjà commenté : on relit les annotations présentes
+   pour décaler la numérotation au lieu de repartir de 1. Les commentaires
+   produits par cette application préfixent leur contenu par « N. », ce qui
+   permet de retrouver le dernier numéro utilisé même après plusieurs passes. */
+const MARKUP = ['Text','Square','Highlight','FreeText','StrikeOut','Underline','Caret','Ink'];
+async function scanComments(){
+  Doc.cmtOffset = 0;
+  let found = 0, maxN = 0;
+  try{
+    for(let n = 1; n <= Doc.total; n++){
+      const list = await (await Doc.pdf.getPage(n)).getAnnotations();
+      for(const a of list || []){
+        if(!MARKUP.includes(a.subtype)) continue;
+        const txt = typeof a.contents === 'string' ? a.contents : (a.contents && a.contents.str) || '';
+        if(!txt.trim()) continue;
+        found++;
+        const m = /^\s*(\d+)\s*[.)]/.exec(txt);
+        if(m) maxN = Math.max(maxN, parseInt(m[1], 10));
+      }
+    }
+  }catch(err){ console.warn('annotations:', err.message); }
+  Doc.cmtOffset = Math.max(maxN, found);
+  if(found) toast(t('t.cmtFound', {n:found, next:Doc.cmtOffset + 1}));
+  drawItems();
 }
 
 async function getVp1(n){
@@ -743,6 +781,12 @@ $('#btnCmt').onclick = ()=>{
 };
 $('#btnUndo').onclick = ()=>undo();
 $('#btnRedo').onclick = ()=>redo();
+
+/* Safari applique son propre zoom de page au pincement : on le neutralise
+   pour que seul le rendu du PDF change d'échelle. */
+['gesturestart','gesturechange','gestureend'].forEach(ev=>
+  document.addEventListener(ev, e=>e.preventDefault(), {passive:false}));
+document.addEventListener('dblclick', e=>{ if(e.target.closest('.viewer')) e.preventDefault(); });
 
 viewer.addEventListener('wheel', e=>{
   if(!e.ctrlKey || !Doc.pdf) return;
@@ -898,7 +942,7 @@ function commentsInOrder(){
   return Doc.items.filter(i=>i.type==='comment')
     .slice().sort((a,b)=> a.page-b.page || a.y-b.y || a.x-b.x);
 }
-const cmtNumber = id => commentsInOrder().findIndex(i=>i.id===id) + 1;
+const cmtNumber = id => Doc.cmtOffset + commentsInOrder().findIndex(i=>i.id===id) + 1;
 
 async function drawItems(){
   const layer = $('#layer');
@@ -1317,9 +1361,14 @@ function renderInspector(){
 function renderItemList(){
   const l=$('#itemList');
   if(!Doc.items.length){ l.innerHTML=`<div class="empty" style="font-size:11.5px">${esc(t('insp.itemsEmpty'))}</div>`; return; }
+  const badge = it => it.type==='highlight' ? '<span class="ty hl">▧</span>'
+    : it.type==='comment' ? '<span class="ty cmt">✎</span>'
+    : it.type==='text' ? '<span class="ty">T</span>'
+    : `<span class="ty" data-img="${it.assetId}"></span>`;
   l.innerHTML = Doc.items.map(it=>`
     <div class="li${it.id===Doc.sel?' on':''}" data-id="${it.id}">
-      <span class="mono">${esc(t('insp.page'))} ${it.page}</span>
+      ${badge(it)}
+      <span class="mono">${it.page}</span>
       <span class="t">${esc(it.type==='image' ? (it.name||t('insp.image'))
         : it.type==='highlight' ? t('insp.highlight')
         : it.type==='comment' ? cmtNumber(it.id)+'. '+String(it.text||'').split('\n')[0].slice(0,20)
@@ -1327,6 +1376,13 @@ function renderItemList(){
       <span class="badge${it.locked?' ok':''}">${it.locked?'✓':'·'}</span>
       <button class="del" data-del="${it.id}" title="${esc(t('insp.delete'))}">🗑</button>
     </div>`).join('');
+  /* vignette de l'image dans la pastille de type */
+  $$('#itemList .ty[data-img]').forEach(async el=>{
+    const a = Lib.assets.find(x=>x.id===el.dataset.img);
+    if(!a){ el.textContent='?'; return; }
+    try{ const img=document.createElement('img'); img.src=await assetUrl(a); el.appendChild(img); }
+    catch(e){ el.textContent='🖼'; }
+  });
   $$('#itemList .li').forEach(el=>el.onclick=e=>{
     const del = e.target.closest('[data-del]');
     if(del){ e.stopPropagation(); return removeItem(del.dataset.del); }
@@ -1471,13 +1527,14 @@ async function buildComments(out, pages, getFont){
   header(annex); y = H - 104;
   const dests = [];
 
+  const num = i => Doc.cmtOffset + i + 1;
   list.forEach((it,i)=>{
     const lines = wrapPdf(it.text || '', reg, 10, TW);
     const need  = 34 + lines.length*14 + 34;
     if(y - need < 64){ annex = out.addPage([W,H]); header(annex); y = H - 104; }
     const c = hexRgb(it.color);
     annex.drawCircle({x:MA+9, y:y+4, size:9.5, color:c});
-    annex.drawText(String(i+1), {x:MA+6.2, y:y+.6, size:10, font:bold, color:rgb(1,1,1)});
+    annex.drawText(String(num(i)), {x:MA+6.2, y:y+.6, size:10, font:bold, color:rgb(1,1,1)});
     const titre = `${t('exp.page')} ${it.page}${it.author ? '  ·  '+it.author : ''}`;
     annex.drawText(titre, {x:MA+28, y:y, size:10.5, font:bold, color:rgb(.12,.13,.2)});
     y -= 18;
@@ -1507,7 +1564,8 @@ async function buildComments(out, pages, getFont){
       color:c, opacity:0.06, borderWidth:1.4, borderColor:c,
       rotate:degrees(ll.theta)});
     page.drawCircle({x:badge.x, y:badge.y, size:9.5, color:c});
-    page.drawText(String(i+1), {x:badge.x-2.9, y:badge.y-3.6, size:10, font:bold, color:rgb(1,1,1)});
+    const nStr = String(num(i));
+    page.drawText(nStr, {x:badge.x - 2.9*nStr.length, y:badge.y-3.6, size:10, font:bold, color:rgb(1,1,1)});
 
     const A = annotsOf(page), d = dests[i];
     const bbox = [Math.min(ul.x,ur.x,ll.x,lr.x), Math.min(ul.y,ur.y,ll.y,lr.y),
@@ -1536,8 +1594,8 @@ async function buildComments(out, pages, getFont){
       Rect: ctx.obj([note.x-10, note.y-10, note.x+10, note.y+10]),
       C: ctx.obj([c.red, c.green, c.blue]), Open:false,
       T: PDFString.of(it.author || ''),
-      Contents: PDFString.of(`${i+1}. ${it.text || ''}`),
-      NM: PDFString.of('cmt-'+(i+1)),
+      Contents: PDFString.of(`${num(i)}. ${it.text || ''}`),
+      NM: PDFString.of('cmt-'+num(i)),
       M: PDFString.fromDate(new Date()), CreationDate: PDFString.fromDate(new Date()),
       Popup: popRef
     }));
@@ -1610,10 +1668,10 @@ async function doInstall(){
   deferredPrompt.prompt();
   await deferredPrompt.userChoice;
   deferredPrompt = null;
-  renderSettings();
+  if($('#themeSeg')) showSettingsModal();
 }
-addEventListener('beforeinstallprompt', e=>{ e.preventDefault(); deferredPrompt=e; renderSettings(); });
-addEventListener('appinstalled', ()=>{ deferredPrompt=null; renderSettings(); toast(t('t.installed'),'ok'); });
+addEventListener('beforeinstallprompt', e=>{ e.preventDefault(); deferredPrompt=e; if($('#themeSeg')) showSettingsModal(); });
+addEventListener('appinstalled', ()=>{ deferredPrompt=null; if($('#themeSeg')) showSettingsModal(); toast(t('t.installed'),'ok'); });
 
 if('serviceWorker' in navigator && location.protocol.startsWith('http')){
   addEventListener('load', async ()=>{
@@ -1649,7 +1707,7 @@ addEventListener('resize', ()=>{
 });
 
 applyI18n();
-renderSettings();
+updateFlag();
 $('#docName').textContent = t('nav.noDoc');
 drawItems();
 

@@ -42,6 +42,9 @@ html[data-theme="light"], html[data-theme="system"].sys-light{
 }
 *{box-sizing:border-box}
 html,body{height:100%;margin:0;overscroll-behavior:none}
+/* dvh suit la barre d'outils rétractable des navigateurs mobiles : sans lui,
+   le mode paysage laisse le bas de l'application sous les menus du navigateur */
+@supports (height:100dvh){ html,body{height:100dvh} }
 body{
   background:var(--chrome);color:var(--text);font-family:var(--font);font-size:13px;
   display:grid;grid-template-rows:auto auto 1fr;overflow:hidden;
@@ -120,7 +123,8 @@ header{padding-top:max(8px,env(safe-area-inset-top))}
    l'autre. Si la largeur ne suffit pas, ils passent à la ligne d'un bloc. */
 .grp{display:flex;align-items:center;gap:6px;flex:0 0 auto}
 .toolbar .spacer{min-width:8px}
-.pager #pNum{width:54px;text-align:center;font-size:15px;font-weight:600;padding:5px 4px}
+.pager #pNum{width:calc(3ch + 16px);min-width:0;text-align:center;font-size:15px;
+  font-weight:600;padding:5px 3px}
 .pager .tot{font-size:15px;font-weight:600;color:var(--muted);white-space:nowrap}
 .zlbl{font-family:var(--mono);width:46px;text-align:center;color:var(--muted);flex:0 0 auto}
 .only-sm{display:none}
@@ -161,6 +165,7 @@ aside.right{border-left:1px solid var(--line)}
 
 /* ---------- visionneuse ---------- */
 .viewer{background:var(--stage);overflow:auto;position:relative;display:flex;justify-content:center;
+  touch-action:pan-x pan-y;
   align-items:flex-start;padding:20px;-webkit-overflow-scrolling:touch;min-width:0}
 .stage{position:relative;height:max-content;box-shadow:var(--shadow);background:#fff;flex:0 0 auto}
 .stage canvas{display:block}
@@ -212,6 +217,12 @@ html[data-theme="dark"] .item.hl-item, html[data-theme="system"]:not(.sys-light)
 .list .li:hover{border-color:var(--ink)}
 .list .li.on{border-color:var(--ink);background:var(--ink-soft)}
 .list .li .t{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.list .li .ty{flex:0 0 20px;width:20px;height:20px;border-radius:4px;display:flex;
+  align-items:center;justify-content:center;font-size:12px;font-weight:700;line-height:1;
+  border:1px solid var(--line);background:var(--panel-2);overflow:hidden}
+.list .li .ty img{width:100%;height:100%;object-fit:contain}
+.list .li .ty.hl{background:#ffe14d;color:#4a3b00;border-color:#e0c53c}
+.list .li .ty.cmt{background:var(--stamp);color:#fff;border-color:var(--stamp)}
 .list .li .del{min-height:24px;width:26px;padding:0;border:0;background:transparent;color:var(--muted);flex:0 0 auto}
 .list .li .del:hover{color:var(--stamp)}
 .badge{font-size:10px;padding:1px 6px;border-radius:20px;border:1px solid var(--line);color:var(--muted)}
@@ -221,7 +232,7 @@ html[data-theme="dark"] .item.hl-item, html[data-theme="system"]:not(.sys-light)
 button.rel{position:relative}
 button.rel.has .dot{display:block}
 
-.settings{margin-top:18px;border-top:1px solid var(--line);padding-top:6px}
+.settings{margin-top:4px}
 .langsel{display:grid;grid-template-columns:1fr 1fr;gap:5px}
 .langsel button{justify-content:flex-start;gap:7px;padding:6px 7px;min-height:34px;
   font-size:12px;overflow:hidden}
@@ -271,7 +282,7 @@ button.rel.has .dot{display:block}
   button{padding:6px 8px;min-height:34px}
   .icon{width:34px;padding:4px}
   .pager{gap:3px}
-  .pager #pNum{width:44px;font-size:15px}
+  .pager #pNum{font-size:14px;padding:5px 2px}
   aside{position:fixed;top:0;bottom:0;width:min(330px,88vw);z-index:40;box-shadow:var(--shadow);
     transform:translateX(-102%);transition:transform .22s ease;padding-top:env(safe-area-inset-top)}
   aside.right{right:0;transform:translateX(102%)}
@@ -285,8 +296,24 @@ button.rel.has .dot{display:block}
   .h-rot{margin-left:-9px;top:-32px}
   .h-del{width:26px;height:26px;right:-12px;top:-12px}
 }
-@media (max-width:380px){
-  header,.toolbar{gap:4px;padding:6px}
-  .icon{width:32px}
+@media (max-width:440px){
+  header,.toolbar{gap:3px;padding:6px 6px}
+  .icon{width:30px;font-size:18px}
+  .icon.glyph-lg{font-size:21px}
+  .pager .tot{font-size:13px}
+  .zlbl{width:40px}
+  .sep{height:20px}
+  button{padding:6px 6px;min-height:32px}
+}
+/* paysage : les deux barres se compriment pour laisser la page visible */
+@media (max-height:520px) and (orientation:landscape){
+  header,.toolbar{padding:3px 6px}
+  header{padding-top:max(3px,env(safe-area-inset-top))}
+  .icon{width:30px;min-height:30px}
+  button{min-height:30px}
+  .brand{display:none}
+  .viewer{padding:5px}
+  .pane-head{padding:6px 10px}
+  .list{max-height:26vh}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}

@@ -2,7 +2,7 @@
 <html lang="fr" data-theme="system">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
 <title>EDITION PDF</title>
 <meta name="description" content="Édition de PDF hors ligne : signatures, images et textes posés sur vos documents, sans envoi de fichier.">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; form-action 'none'; script-src 'self'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; font-src 'self'; connect-src 'self'; manifest-src 'self'; object-src 'none'">
@@ -33,13 +33,13 @@
   <span class="spacer"></span>
   <button id="btnExport" class="primary hide-sm" data-i18n="nav.save"></button>
   <button id="btnExportSm" class="icon only-sm primary" data-i18n-title="nav.save" aria-label="">⬇</button>
-  <button id="btnInsp" class="icon only-sm rel" data-i18n-title="nav.properties" aria-label="">⚙<span class="dot"></span></button>
+  <button id="btnInsp" class="icon only-sm rel" data-i18n-title="nav.properties" aria-label="">▤<span class="dot"></span></button>
 </header>
 
 <div class="toolbar">
   <span class="grp">
     <button id="pPrev" class="icon glyph-lg" data-i18n-title="tool.prev" aria-label="">‹</button>
-    <input type="text" id="pNum" value="–" inputmode="numeric" data-i18n-title="tool.pageNumber" aria-label="">
+    <input type="text" id="pNum" value="–" inputmode="numeric" maxlength="4" maxlength="4" data-i18n-title="tool.pageNumber" aria-label="">
     <span class="tot" id="pTot">/ –</span>
     <button id="pNext" class="icon glyph-lg" data-i18n-title="tool.next" aria-label="">›</button>
     <span class="sep hide-sm"></span>
@@ -90,12 +90,11 @@
   <aside class="right" id="paneInsp">
     <div class="pane-head">
       <h2 data-i18n="nav.properties"></h2>
-      <button id="closeInsp" class="icon ghost only-sm" data-i18n-title="nav.close" aria-label="">✕</button>
+      <button id="btnSet" class="icon ghost" data-i18n-title="insp.settings" aria-label="">⚙</button>
+      <button id="btnLangP" class="icon ghost" data-i18n-title="nav.language" aria-label="">🌐</button>
+      <button id="closeInsp" class="icon ghost" data-i18n-title="nav.close" aria-label="">✕</button>
     </div>
-    <div class="pane-body">
-      <div id="insp"></div>
-      <div class="settings" id="settings"></div>
-    </div>
+    <div class="pane-body" id="insp"></div>
     <div class="pane-foot" style="flex-direction:column;gap:6px;align-items:stretch">
       <div class="chip" data-i18n="insp.items"></div>
       <div class="list" id="itemList"></div>

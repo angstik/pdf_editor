@@ -69,8 +69,11 @@ Installable sur ordinateur et sur mobile (Android / iOS), utilisable hors ligne.
 - **Écran d'accueil** au premier lancement : quatre étapes d'usage et la marche à suivre pour
   installer l'application sur Android, iOS et ordinateur. Réaffichable par le bouton ?,
   masquable définitivement.
-- Thème **sombre / clair / système**, choix de la langue avec drapeau, et accès à l'aide :
-  tous regroupés dans le panneau *Propriétés* pour dégager la barre supérieure.
+- Thème **sombre / clair / système**, choix de la langue et accès à l'aide : accessibles depuis
+  la première ligne du panneau *Propriétés*, par deux fenêtres distinctes, de sorte que le corps
+  du panneau reste entièrement dédié à l'élément sélectionné.
+- **Reprise d'un document déjà commenté** : les annotations présentes sont relues à l'ouverture
+  et la numérotation repart au numéro suivant plutôt que de recommencer à 1.
 - Disposition adaptative : sur mobile, la bibliothèque et l'inspecteur deviennent des tiroirs,
   la barre d'outils se replie sur des icônes et ne défile jamais horizontalement.
 - PWA : installable, hors ligne, gestionnaire de fichiers `.pdf` sur les navigateurs
@@ -198,6 +201,15 @@ réinterprétés à chaque fois. Chaque commentaire produit donc un cadre, une t
 numéro **dessinés dans le contenu**, un `/Link` couvrant la zone et un second sur la pastille,
 tous deux vers la note en annexe, un `/Link` de retour depuis l'annexe, et une note `/Text`
 isolée dans la marge qui porte le texte pour les lecteurs sachant ouvrir une bulle.
+
+**Zoom.** Le pincement ne doit modifier que l'échelle du rendu, pas celle de l'interface.
+Cela demande trois choses simultanées : `user-scalable=no` dans la balise viewport,
+`touch-action: pan-x pan-y` sur la zone de visualisation, et la neutralisation des événements
+`gesturestart` / `gesturechange` propres à Safari, qui appliquent sinon leur propre zoom de page.
+
+**Mode paysage.** La hauteur est exprimée en `dvh` lorsque le navigateur le gère : sans cela,
+`100%` se réfère à la hauteur avec barres d'outils rétractées et le bas de l'application passe
+sous les menus du navigateur dès que celles-ci réapparaissent.
 
 **Gestionnaires en ligne.** La politique de sécurité interdit `script-src 'unsafe-inline'` :
 tout attribut `onclick` du balisage est donc silencieusement ignoré. Les boutons de fermeture
