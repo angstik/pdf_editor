@@ -6,7 +6,7 @@ fichier n'est envoyé sur un serveur, aucune dépendance réseau après la premi
 
 Installable sur ordinateur et sur mobile (Android / iOS), utilisable hors ligne.
 
----  
+---
 
 ## Fonctionnalités
 
@@ -73,7 +73,12 @@ Installable sur ordinateur et sur mobile (Android / iOS), utilisable hors ligne.
   la première ligne du panneau *Propriétés*, par deux fenêtres distinctes, de sorte que le corps
   du panneau reste entièrement dédié à l'élément sélectionné.
 - **Reprise d'un document déjà commenté** : les annotations présentes sont relues à l'ouverture
-  et la numérotation repart au numéro suivant plutôt que de recommencer à 1.
+  et la numérotation repart au numéro suivant plutôt que de recommencer à 1. L'annexe produite
+  lors d'un passage antérieur est repérée par deux clés privées, `PDFEdAnnex` qui l'identifie et
+  `PDFEdY` qui mémorise où s'est arrêtée la mise en page : les nouvelles notes s'ajoutent à la
+  suite sur cette même page, et une page n'est ouverte que si la place vient à manquer.
+- **Nom du fichier proposé** avant l'enregistrement, avec un suffixe paramétrable dans les
+  réglages.
 - Disposition adaptative : sur mobile, la bibliothèque et l'inspecteur deviennent des tiroirs,
   la barre d'outils se replie sur des icônes et ne défile jamais horizontalement.
 - PWA : installable, hors ligne, gestionnaire de fichiers `.pdf` sur les navigateurs
@@ -201,6 +206,13 @@ réinterprétés à chaque fois. Chaque commentaire produit donc un cadre, une t
 numéro **dessinés dans le contenu**, un `/Link` couvrant la zone et un second sur la pastille,
 tous deux vers la note en annexe, un `/Link` de retour depuis l'annexe, et une note `/Text`
 isolée dans la marge qui porte le texte pour les lecteurs sachant ouvrir une bulle.
+
+**Tracé et défilement.** `touch-action: pan-x pan-y` sur la visionneuse, nécessaire au
+pincement, a pour effet que le navigateur fait défiler la page pendant un glissement à un doigt
+dès que le document dépasse l'écran. Le rectangle de référence capturé au début du tracé devient
+alors obsolète et le cadre obtenu n'a plus aucun rapport avec le geste. La couche d'éléments
+passe donc en `touch-action: none` dès qu'un outil est armé, le pointeur est capturé, et les
+coordonnées sont relues à chaque déplacement plutôt que figées au départ.
 
 **Zoom.** Le pincement ne doit modifier que l'échelle du rendu, pas celle de l'interface.
 Cela demande trois choses simultanées : `user-scalable=no` dans la balise viewport,

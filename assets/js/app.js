@@ -140,12 +140,16 @@ function showSettingsModal(){
       <label class="f">${esc(t('nav.language'))}</label>
       <div class="row"><button id="setLangBtn" style="justify-content:flex-start;gap:8px">
         ${flagSvg(LANG)}<span>${esc((LANGS.find(l=>l.code===LANG)||{}).label||LANG)}</span></button></div>
+      <label class="f">${esc(t('insp.suffix'))}</label>
+      <input type="text" id="setSuffix" value="${esc(SUFFIX())}" spellcheck="false">
       <div class="row" style="margin-top:12px"><button id="setHelp">${esc(t('nav.help'))}</button></div>
       <div class="row" style="margin-top:6px${deferredPrompt?'':';display:none'}">
         <button id="setInstall" class="primary">${esc(t('nav.install'))}</button></div>
     </div>
     <div class="foot"><button class="primary" data-close>${esc(t('m.close'))}</button></div>`);
   $$('#themeSeg button').forEach(b=> b.onclick = ()=>applyTheme(b.dataset.t));
+  $('#setSuffix').onchange = e=>
+    localStorage.setItem('pdfed.suffix', e.target.value.replace(/[\\/:*?"<>|]/g,''));
   $('#setLangBtn').onclick = showLangModal;
   $('#setHelp').onclick = ()=>showSplash(false);
   $('#setInstall').onclick = doInstall;
@@ -595,6 +599,8 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('vendor/pdf.worker.min.js', doc
 
 bind(['#btnOpen','#btnOpenSm'], ()=> $('#filePdf').click());
 $('#filePdf').onchange = e=>{ if(e.target.files[0]) loadPdf(e.target.files[0]); e.target.value=''; };
+/* toute la zone vide ouvre le sélecteur, pas seulement le bouton */
+$('#hint').onclick = ()=> $('#filePdf').click();
 
 const viewer = $('#viewer');
 ['dragenter','dragover'].forEach(ev=>viewer.addEventListener(ev,e=>{e.preventDefault();viewer.classList.add('dragover');}));
@@ -1077,8 +1083,15 @@ $('#layer').addEventListener('pointerdown', e=>{
    réelle de la ligne. Sans couche de texte (PDF scanné), on garde le rectangle. */
 function startBand(e){
   const layer = $('#layer'), s = Doc.scale;
-  const r0 = layer.getBoundingClientRect();
-  const x0 = e.clientX - r0.left, y0 = e.clientY - r0.top;
+  /* Le rectangle de référence est relu à chaque déplacement : la visionneuse
+     peut défiler pendant le geste dès que la page dépasse l'écran, et des
+     coordonnées figées au départ donneraient un cadre sans rapport. */
+  const at = ev => {
+    const r = layer.getBoundingClientRect();
+    return { x: ev.clientX - r.left, y: ev.clientY - r.top };
+  };
+  const p0 = at(e), x0 = p0.x, y0 = p0.y;
+  try{ layer.setPointerCapture(e.pointerId); }catch(err){}
   const band = document.createElement('div');
   band.className = 'band';
   layer.appendChild(band);
@@ -1089,11 +1102,12 @@ function startBand(e){
     band.style.height= Math.abs(y1-y0)+'px';
   };
   draw(x0,y0);
-  const move = ev=> draw(ev.clientX-r0.left, ev.clientY-r0.top);
+  const move = ev=>{ const p = at(ev); draw(p.x, p.y); };
   const up = async ev=>{
     removeEventListener('pointermove',move); removeEventListener('pointerup',up);
     removeEventListener('pointercancel',up);
-    const x1 = ev.clientX-r0.left, y1 = ev.clientY-r0.top;
+    try{ layer.releasePointerCapture(ev.pointerId); }catch(err){}
+    const pe = at(ev), x1 = pe.x, y1 = pe.y;
     band.remove();
     if(Math.abs(x1-x0) < 4 && Math.abs(y1-y0) < 4) return;
     const sel = {x:Math.min(x0,x1)/s, y:Math.min(y0,y1)/s,
@@ -1121,9 +1135,20 @@ async function addHighlights(sel){
       (lines.get(key) || lines.set(key,[]).get(key)).push(b);
     }
     for(const group of lines.values()){
-      const x = Math.min(...group.map(b=>b.x)), y = Math.min(...group.map(b=>b.y));
-      const w = Math.max(...group.map(b=>b.x+b.w)) - x;
-      const h = Math.max(...group.map(b=>b.y+b.h)) - y;
+      const vert = group[0].vertical;
+      let x = Math.min(...group.map(b=>b.x)), y = Math.min(...group.map(b=>b.y));
+      let w = Math.max(...group.map(b=>b.x+b.w)) - x;
+      let h = Math.max(...group.map(b=>b.y+b.h)) - y;
+      /* la hauteur de ligne est reprise du texte, mais l'étendue suivant l'axe
+         d'écriture est bornée par le geste : on peut ainsi surligner quelques
+         mots et non la ligne entière */
+      if(vert){
+        const a = Math.max(y, sel.y), b = Math.min(y+h, sel.y+sel.h);
+        if(b - a > 2){ y = a; h = b - a; }
+      } else {
+        const a = Math.max(x, sel.x), b = Math.min(x+w, sel.x+sel.w);
+        if(b - a > 2){ x = a; w = b - a; }
+      }
       Doc.items.push(hlItem({x:x-1, y, w:w+2, h}, color));
     }
   }
@@ -1406,9 +1431,40 @@ function toPdf(vp1, it, pageRot, lx, ly){
 }
 
 bind(['#btnExport','#btnExportSm'], exportPdf);
+const SUFFIX = ()=> localStorage.getItem('pdfed.suffix') ?? '-annote';
+/* Nom proposé avant génération : base du document + suffixe paramétrable. */
+function askFileName(){
+  const base = Doc.name.replace(/\.pdf$/i,'') + SUFFIX();
+  return new Promise(res=>{
+    modal(`<h3>${esc(t('nav.save'))}</h3>
+      <label class="f">${esc(t('m.fileName'))}</label>
+      <div class="row"><input type="text" id="fnName" value="${esc(base)}" spellcheck="false">
+        <span style="flex:0 0 auto;color:var(--muted)">.pdf</span></div>
+      <div class="foot"><button data-close>${esc(t('m.cancel'))}</button>
+        <button class="primary" id="fnOk">${esc(t('nav.saveShort'))}</button></div>`);
+    let done = false;
+    const finish = v=>{ if(!done){ done = true; res(v); } };
+    $('#mask').addEventListener('click', function off(e){
+      if(e.target.closest('[data-close]') || e.target.id==='mask'){
+        $('#mask').removeEventListener('click', off); finish(null);
+      }
+    });
+    const ok = ()=>{
+      const v = $('#fnName').value.trim().replace(/[\\/:*?"<>|]/g,'-');
+      if(!v) return;
+      closeModal(); finish(v.replace(/\.pdf$/i,'') + '.pdf');
+    };
+    $('#fnOk').onclick = ok;
+    $('#fnName').onkeydown = e=>{ if(e.key==='Enter') ok(); };
+    const inp = $('#fnName'); inp.focus();
+    inp.setSelectionRange(0, inp.value.length);
+  });
+}
 async function exportPdf(){
   if(!Doc.pdf){ toast(t('t.noDoc'),'err'); return; }
   if(!Doc.items.length && !confirm(t('m.exportEmpty'))) return;
+  const exportName = await askFileName();
+  if(!exportName) return;
   const btns = [$('#btnExport'), $('#btnExportSm')];
   const prev = btns.map(b=>b.innerHTML);
   btns.forEach(b=>{ b.disabled=true; });
@@ -1469,7 +1525,7 @@ async function exportPdf(){
       }
     }
     await buildComments(out, pages, getFont);
-    await saveBytes(await out.save(), Doc.name.replace(/\.pdf$/i,'') + '-signed.pdf');
+    await saveBytes(await out.save(), exportName);
     toast(t('t.pdfDone'),'ok');
   }catch(err){
     console.error(err);
@@ -1516,22 +1572,44 @@ async function buildComments(out, pages, getFont){
   const goTo = (ref, y)=> ctx.obj({ S:'GoTo',
     D: ctx.obj([ref, PDFName.of('XYZ'), PDFNumber.of(0), PDFNumber.of(y), null]) });
 
-  /* --- pages d'annexe --------------------------------------------------- */
+  /* --- pages d'annexe ---------------------------------------------------
+     Une annexe produite lors d'un passage précédent est marquée par deux
+     clés privées : PDFEdAnnex l'identifie, PDFEdY mémorise où s'est arrêtée
+     la mise en page. On reprend donc au bon endroit de la dernière page
+     d'annexe, et on n'en ouvre une nouvelle que si la place manque. */
+  const K_ANNEX = PDFName.of('PDFEdAnnex'), K_Y = PDFName.of('PDFEdY');
   const first = pages[0] ? pages[0].getSize() : {width:595, height:842};
   const W = first.width, H = first.height, MA = 64, TW = W - MA*2 - 30;
-  let annex = out.addPage([W,H]), y = H - 64;
   const header = page=>{
-    page.drawText(t('exp.annexTitle'), {x:MA, y:H-56, size:15, font:bold, color:rgb(.1,.11,.17)});
-    page.drawLine({start:{x:MA,y:H-66}, end:{x:W-MA,y:H-66}, thickness:.7, color:rgb(.72,.74,.8)});
+    const sz = page.getSize();
+    page.drawText(t('exp.annexTitle'), {x:MA, y:sz.height-56, size:15, font:bold, color:rgb(.1,.11,.17)});
+    page.drawLine({start:{x:MA,y:sz.height-66}, end:{x:sz.width-MA,y:sz.height-66},
+                   thickness:.7, color:rgb(.72,.74,.8)});
   };
-  header(annex); y = H - 104;
+  const newAnnex = ()=>{
+    const p = out.addPage([W,H]);
+    p.node.set(K_ANNEX, PDFNumber.of(1));
+    header(p);
+    return p;
+  };
+  let annex = null, y = 0;
+  const all = out.getPages();
+  for(let i = all.length-1; i >= 0; i--){
+    if(all[i].node.get(K_ANNEX)){
+      const prev = all[i].node.lookup(K_Y);
+      const py = prev && typeof prev.asNumber === 'function' ? prev.asNumber() : NaN;
+      if(py > 140){ annex = all[i]; y = py; }
+      break;                       // seule la dernière annexe nous intéresse
+    }
+  }
+  if(!annex){ annex = newAnnex(); y = H - 104; }
   const dests = [];
 
   const num = i => Doc.cmtOffset + i + 1;
   list.forEach((it,i)=>{
     const lines = wrapPdf(it.text || '', reg, 10, TW);
     const need  = 34 + lines.length*14 + 34;
-    if(y - need < 64){ annex = out.addPage([W,H]); header(annex); y = H - 104; }
+    if(y - need < 64){ annex = newAnnex(); y = H - 104; }
     const c = hexRgb(it.color);
     annex.drawCircle({x:MA+9, y:y+4, size:9.5, color:c});
     annex.drawText(String(num(i)), {x:MA+6.2, y:y+.6, size:10, font:bold, color:rgb(1,1,1)});
@@ -1547,6 +1625,7 @@ async function buildComments(out, pages, getFont){
     dests.push({annex, top:y+70, btn:[MA+28, y-4, MA+28+bw, y+17]});
     y -= 40;
   });
+  annex.node.set(K_Y, PDFNumber.of(Math.round(y)));   // reprise au prochain passage
 
   /* --- marques sur les pages, annotations, aller-retour ------------------ */
   list.forEach((it,i)=>{

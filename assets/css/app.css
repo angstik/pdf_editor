@@ -123,9 +123,10 @@ header{padding-top:max(8px,env(safe-area-inset-top))}
    l'autre. Si la largeur ne suffit pas, ils passent à la ligne d'un bloc. */
 .grp{display:flex;align-items:center;gap:6px;flex:0 0 auto}
 .toolbar .spacer{min-width:8px}
-.pager #pNum{width:calc(3ch + 16px);min-width:0;text-align:center;font-size:15px;
-  font-weight:600;padding:5px 3px}
-.pager .tot{font-size:15px;font-weight:600;color:var(--muted);white-space:nowrap}
+.pager #pNum{width:calc(3ch + 6px);min-width:0;text-align:center;font-size:14px;
+  font-weight:600;padding:5px 1px}
+.pager .tot{font-size:13px;font-weight:600;color:var(--muted);white-space:nowrap;
+  margin-right:2px}
 .zlbl{font-family:var(--mono);width:46px;text-align:center;color:var(--muted);flex:0 0 auto}
 .only-sm{display:none}
 
@@ -188,7 +189,10 @@ html[data-theme="dark"] .item.hl-item, html[data-theme="system"]:not(.sys-light)
 .band{position:absolute;border:1.5px dashed var(--ink);background:var(--ink-soft);
   pointer-events:none;border-radius:2px}
 .viewer.hl-mode{cursor:crosshair}
-.viewer.hl-mode .layer{cursor:crosshair}
+/* Outil armé : le doigt doit tracer, pas faire défiler la page agrandie.
+   Sans cela le navigateur panoramique pendant le geste et le rectangle obtenu
+   n'a plus aucun rapport avec ce qui a été dessiné. */
+.viewer.hl-mode .layer{cursor:crosshair;touch-action:none}
 .item .txt{width:100%;height:100%;white-space:pre;color:#000;pointer-events:none}
 .item.sel{outline:1px solid var(--ink);outline-offset:1px}
 .item.locked{cursor:default}
@@ -203,9 +207,11 @@ html[data-theme="dark"] .item.hl-item, html[data-theme="system"]:not(.sys-light)
   font-size:13px;line-height:1;cursor:pointer}
 .h-del:hover{filter:brightness(1.12)}
 .drophint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;
   color:var(--muted);flex-direction:column;gap:10px;text-align:center;padding:24px;line-height:1.6}
 .drophint b{color:var(--text);font-weight:600;font-size:16px}
 .viewer.dragover{outline:2px dashed var(--ink);outline-offset:-10px}
+.drophint:hover b{color:var(--ink)}
 
 /* ---------- inspecteur ---------- */
 .row{display:flex;gap:6px;align-items:flex-end}

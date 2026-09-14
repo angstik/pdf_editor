@@ -12,6 +12,8 @@ const I18N = {
 /* ------------------------------------------------------------------ FR */
 fr:{
 locale:'fr-FR',
+'m.fileName':"Nom du fichier",
+'insp.suffix':"Suffixe ajouté au nom",
 't.cmtFound':"Commentaires déjà présents : {n} — la numérotation reprend à {next}",
 'nav.settings':"Réglages",
 'exp.annexMore':"Commentaires (suite)",
@@ -140,6 +142,8 @@ locale:'fr-FR',
 /* ------------------------------------------------------------------ EN */
 en:{
 locale:'en-GB',
+'m.fileName':"File name",
+'insp.suffix':"Suffix added to the name",
 't.cmtFound':"Comments already present: {n} — numbering resumes at {next}",
 'nav.settings':"Settings",
 'exp.annexMore':"Comments (continued)",
@@ -268,6 +272,8 @@ locale:'en-GB',
 /* ------------------------------------------------------------------ DE */
 de:{
 locale:'de-DE',
+'m.fileName':"Dateiname",
+'insp.suffix':"An den Namen angehängtes Suffix",
 't.cmtFound':"Bereits vorhandene Kommentare: {n} — Nummerierung läuft ab {next} weiter",
 'nav.settings':"Einstellungen",
 'exp.annexMore':"Kommentare (Fortsetzung)",
@@ -397,6 +403,8 @@ locale:'de-DE',
 /* ------------------------------------------------------------------ ES */
 es:{
 locale:'es-ES',
+'m.fileName':"Nombre del archivo",
+'insp.suffix':"Sufijo añadido al nombre",
 't.cmtFound':"Comentarios ya presentes: {n} — la numeración continúa en {next}",
 'nav.settings':"Ajustes",
 'exp.annexMore':"Comentarios (continuación)",
@@ -525,6 +533,8 @@ locale:'es-ES',
 /* ------------------------------------------------------------------ IT */
 it:{
 locale:'it-IT',
+'m.fileName':"Nome del file",
+'insp.suffix':"Suffisso aggiunto al nome",
 't.cmtFound':"Commenti già presenti: {n} — la numerazione riprende da {next}",
 'nav.settings':"Impostazioni",
 'exp.annexMore':"Commenti (continua)",
@@ -653,6 +663,8 @@ locale:'it-IT',
 /* ------------------------------------------------------------------ UK */
 uk:{
 locale:'uk-UA',
+'m.fileName':"Назва файлу",
+'insp.suffix':"Суфікс, що додається до назви",
 't.cmtFound':"Уже наявних коментарів: {n} — нумерація продовжиться з {next}",
 'nav.settings':"Налаштування",
 'exp.annexMore':"Коментарі (продовження)",
@@ -781,6 +793,8 @@ locale:'uk-UA',
 /* ------------------------------------------------------------------ CS */
 cs:{
 locale:'cs-CZ',
+'m.fileName':"Název souboru",
+'insp.suffix':"Přípona přidávaná k názvu",
 't.cmtFound':"Již přítomné komentáře: {n} — číslování pokračuje od {next}",
 'nav.settings':"Nastavení",
 'exp.annexMore':"Komentáře (pokračování)",
