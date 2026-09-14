@@ -39,8 +39,12 @@ Installable sur ordinateur et sur mobile (Android / iOS), utilisable hors ligne.
   un surlignage calé sur sa hauteur réelle, déduite de la couche de texte du PDF. Sur un
   document scanné, sans couche de texte, le rectangle tracé est conservé tel quel. Rendu en
   mode de fusion *multiply*, à l'écran comme dans le PDF exporté.
+- **Commentaires** : on trace un cadre libre autour du passage concerné, on saisit le texte,
+  et l'élément reste redimensionnable indépendamment de ce qu'il entoure — poignées d'angle et
+  de côté, ou saisie directe de la largeur et de la hauteur. Numérotation automatique dans
+  l'ordre de lecture (page, puis de haut en bas).
 - **Couleurs récentes** proposées en tête de la rangée de pastilles, mémorisées par usage
-  (texte et surlignage ont leurs propres historiques).
+  (texte, surlignage et commentaire ont leurs propres historiques).
 - Double-clic sur la poignée ronde : l'angle est ramené au multiple de 90° le plus proche.
 - Fermeture du document sans enregistrer, avec confirmation et raccourci vers l'export.
 - **Valider la position** verrouille l'élément ; on peut alors en poser un autre, puis
@@ -180,6 +184,20 @@ ancre  = centre + R(θ) · (−w/2, −h/2)
 
 Une seule formule couvre donc tous les cas, y compris la rotation libre d'une signature sur
 une page elle-même pivotée.
+
+**Commentaires à l'export.** Trois constats tirés d'essais sur iOS gouvernent la génération.
+D'abord, l'apparence (`/AP`) d'une annotation `/Link` n'est pas dessinée par tous les lecteurs :
+PDFKit, en particulier, considère un lien comme invisible par nature. Tout ce qui doit être vu —
+le cadre et la pastille numérotée — est donc écrit dans le flux de contenu de la page, ce qui le
+rend visible partout et à l'impression, sans réécrire un seul opérateur d'origine. Ensuite, une
+annotation de balisage placée sous un lien capte le toucher et empêche de l'atteindre : la
+pastille cliquable est donc posée dans la marge, hors du rectangle du cadre, sans recouvrement.
+Enfin, `/Highlight` est le type de balisage qui ouvre le plus fidèlement sa bulle : c'est lui qui
+porte le texte du commentaire, en teinte à 15 %. Chaque commentaire produit ainsi un cadre et un
+numéro dessinés, un `/Highlight` translucide pour la bulle, un `/Link` sur la pastille vers la
+page d'annexe, et un `/Link` de retour depuis l'annexe vers le passage exact. Le rendu du
+surlignage reste à la main du lecteur : certains, dont poppler, redessinent les extrémités
+arrondies à partir des `/QuadPoints` plutôt que d'utiliser l'apparence fournie.
 
 **Polices.** Montserrat et Roboto sont livrées sous forme d'instances statiques (poids 400 et 700,
 romain et italique) extraites des polices variables du dépôt `google/fonts` avec

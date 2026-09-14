@@ -32,7 +32,8 @@ $('#mask').addEventListener('pointerdown', e=>{ if(e.target.id==='mask') closeMo
 /* composant de choix de couleur : pastille lisible + pipette native masquée */
 const PRESETS = {
   text: ['#111133','#000000','#1a4fd6','#c62828','#1b7a4b','#6d4c41'],
-  hl:   ['#ffe14d','#b6f2a1','#9fd8ff','#ffb3d9','#ffc48a','#d6c2ff']
+  hl:   ['#ffe14d','#b6f2a1','#9fd8ff','#ffb3d9','#ffc48a','#d6c2ff'],
+  cmt:  ['#cc2a2e','#1a4fd6','#b8860b','#1b7a4b','#7b2fbe','#333a4d']
 };
 /* Les dernières couleurs retenues sont proposées en tête de la rangée du bas. */
 function recentColors(kind){
@@ -721,13 +722,20 @@ bind(['#zFit','#zFitSm'], ()=>{ if(Doc.pdf) fitPage(); });
 function setMode(m){
   Doc.mode = m;
   $('#btnHl').classList.toggle('on', m==='highlight');
-  viewer.classList.toggle('hl-mode', m==='highlight');
+  $('#btnCmt').classList.toggle('on', m==='comment');
+  viewer.classList.toggle('hl-mode', !!m);
 }
 $('#btnHl').onclick = ()=>{
   if(!Doc.pdf){ toast(t('t.openFirst'),'err'); return; }
   const on = Doc.mode!=='highlight';
   setMode(on ? 'highlight' : null);
   if(on) toast(t('t.hlDraw'));
+};
+$('#btnCmt').onclick = ()=>{
+  if(!Doc.pdf){ toast(t('t.openFirst'),'err'); return; }
+  const on = Doc.mode!=='comment';
+  setMode(on ? 'comment' : null);
+  if(on) toast(t('t.cmtDraw'));
 };
 $('#btnUndo').onclick = ()=>undo();
 $('#btnRedo').onclick = ()=>redo();
@@ -848,6 +856,14 @@ bind(['#btnText','#btnTextSm'], ()=>placeText(t('insp.textType')));
 bind(['#btnDate','#btnDateSm'], ()=>placeText(new Date().toLocaleDateString(locale())));
 
 const selected = ()=> Doc.items.find(i=>i.id===Doc.sel) || null;
+const isRect = it => it && (it.type==='comment' || it.type==='highlight');
+/* Les commentaires sont numérotés dans l'ordre de lecture : par page,
+   puis du haut vers le bas. Le même ordre sert à l'écran et à l'export. */
+function commentsInOrder(){
+  return Doc.items.filter(i=>i.type==='comment')
+    .slice().sort((a,b)=> a.page-b.page || a.y-b.y || a.x-b.x);
+}
+const cmtNumber = id => commentsInOrder().findIndex(i=>i.id===id) + 1;
 
 async function drawItems(){
   const layer = $('#layer');
@@ -860,7 +876,16 @@ async function drawItems(){
       el.dataset.id = it.id;
       el.style.cssText = `left:${it.x*s}px;top:${it.y*s}px;width:${it.w*s}px;height:${it.h*s}px;
         transform:rotate(${-it.rot}deg);opacity:${it.opacity}`;
-      if(it.type==='highlight'){
+      if(it.type==='comment'){
+        el.classList.add('cmt');
+        el.style.setProperty('--cc', it.color);
+        const tint=document.createElement('div'); tint.className='cmt-tint';
+        const box=document.createElement('div');  box.className='cmt-box';
+        const num=document.createElement('div');  num.className='cmt-n';
+        num.textContent = cmtNumber(it.id);
+        el.append(tint, box, num);
+        el.title = it.text || '';
+      } else if(it.type==='highlight'){
         el.classList.add('hl-item');
         const d=document.createElement('div'); d.className='hl';
         d.style.background = it.color;
@@ -887,6 +912,11 @@ async function drawItems(){
           const hs=document.createElement('div'); hs.className='handle h-se'; hs.dataset.h='se';
           const hr=document.createElement('div'); hr.className='handle h-rot'; hr.dataset.h='rot';
           el.append(hs,hr);
+          if(isRect(it)){   // côtés : un seul axe à la fois
+            const he=document.createElement('div'); he.className='handle h-e'; he.dataset.h='e';
+            const hsd=document.createElement('div'); hsd.className='handle h-s'; hsd.dataset.h='s';
+            el.append(he,hsd);
+          }
         }
       }
       layer.appendChild(el);
@@ -898,6 +928,11 @@ async function drawItems(){
 
 /* Double-clic sur la poignée ronde : angle ramené au multiple de 90° le plus proche. */
 $('#layer').addEventListener('dblclick', e=>{
+  const host = e.target.closest('.item');
+  if(host && !e.target.dataset.h){
+    const c = Doc.items.find(i=>i.id===host.dataset.id);
+    if(c && c.type==='comment' && !c.locked){ e.preventDefault(); return editComment(c, false); }
+  }
   if(e.target.dataset.h !== 'rot') return;
   const it = Doc.items.find(i=>i.id === e.target.closest('.item').dataset.id);
   if(!it || it.locked) return;
@@ -908,7 +943,7 @@ $('#layer').addEventListener('dblclick', e=>{
 });
 
 $('#layer').addEventListener('pointerdown', e=>{
-  if(Doc.mode==='highlight'){ e.preventDefault(); return startBand(e); }
+  if(Doc.mode){ e.preventDefault(); return startBand(e); }
   const el = e.target.closest('.item');
   if(!el){ if(Doc.sel){ Doc.sel=null; drawItems(); } return; }
   const it = Doc.items.find(i=>i.id===el.dataset.id); if(!it) return;
@@ -932,8 +967,14 @@ $('#layer').addEventListener('pointerdown', e=>{
     if(mode==='move'){
       it.x=o.x+dx; it.y=o.y+dy;
       if(ev.shiftKey){ if(Math.abs(dx)>Math.abs(dy)) it.y=o.y; else it.x=o.x; }
-    } else if(mode==='se'){
-      if(it.type==='image'){
+    } else if(mode==='se' || mode==='e' || mode==='s'){
+      if(isRect(it)){
+        /* cadre libre : largeur et hauteur indépendantes, sans lien avec
+           la taille de ce qui se trouve dessous */
+        if(mode!=='s') it.w = Math.max(6, o.w + dx);
+        if(mode!=='e') it.h = Math.max(6, o.h + dy);
+        if(ev.altKey){ it.x = o.x - (it.w-o.w)/2; it.y = o.y - (it.h-o.h)/2; }
+      } else if(it.type==='image'){
         const k = Math.max(.05, 1 + (dx/Math.max(1,o.w) + dy/Math.max(1,o.h))/2);
         it.w=o.w*k; it.h=o.h*k;
       } else {
@@ -978,7 +1019,7 @@ function startBand(e){
     if(Math.abs(x1-x0) < 4 && Math.abs(y1-y0) < 4) return;
     const sel = {x:Math.min(x0,x1)/s, y:Math.min(y0,y1)/s,
                  w:Math.abs(x1-x0)/s, h:Math.abs(y1-y0)/s};
-    await addHighlights(sel);
+    if(Doc.mode==='comment') addComment(sel); else await addHighlights(sel);
   };
   addEventListener('pointermove',move); addEventListener('pointerup',up);
   addEventListener('pointercancel',up);
@@ -1009,6 +1050,44 @@ async function addHighlights(sel){
   }
   Doc.sel = Doc.items[Doc.items.length-1].id;
   drawItems();
+}
+const CMT_COLOR = '#cc2a2e';
+function addComment(r){
+  const it = {id:uid(), page:Doc.page, type:'comment',
+    x:r.x, y:r.y, w:Math.max(20,r.w), h:Math.max(14,r.h), rot:0,
+    color: localStorage.getItem('pdfed.cmt.color') || CMT_COLOR,
+    author: localStorage.getItem('pdfed.author') || '',
+    text:'', opacity:1, locked:false};
+  editComment(it, true);
+}
+/* Saisie du texte. À la création, un commentaire vide est simplement abandonné. */
+function editComment(it, isNew){
+  modal(`<h3>${esc(t('m.commentTitle'))}${isNew?'':' '+cmtNumber(it.id)}</h3>
+    <p>${esc(t('m.commentBody'))}</p>
+    <label class="f">${esc(t('insp.author'))}</label>
+    <input type="text" id="cAuth" value="${esc(it.author||'')}" autocomplete="name">
+    <label class="f">${esc(t('insp.commentText'))}</label>
+    <textarea id="cTxt" rows="5" placeholder="${esc(t('m.commentPh'))}">${esc(it.text||'')}</textarea>
+    <label class="f">${esc(t('insp.color'))}</label>
+    ${swatchHtml('cCol', it.color, false, 'cmt')}
+    <div class="foot"><button onclick="closeModal()">${esc(t('m.cancel'))}</button>
+      <button class="primary" id="cOk">${esc(t('m.ok'))}</button></div>`);
+  let color = it.color;
+  bindSwatch('cCol', v=>{ color = v; }, 'cmt');
+  $('#cTxt').focus();
+  $('#cOk').onclick = ()=>{
+    const txt = $('#cTxt').value.trim();
+    if(isNew && !txt){ closeModal(); toast(t('t.cmtEmpty')); return; }
+    snapshot();
+    it.text = txt;
+    it.author = $('#cAuth').value.trim();
+    it.color = color;
+    localStorage.setItem('pdfed.author', it.author);
+    localStorage.setItem('pdfed.cmt.color', color);
+    if(isNew){ Doc.items.push(it); Doc.sel = it.id; }
+    closeModal(); drawItems();
+    if(isNew) toast(t('t.cmtAdded'),'ok');
+  };
 }
 function hlItem(r, color){
   return {id:uid(), page:Doc.page, type:'highlight', color, opacity:0.45,
@@ -1061,7 +1140,22 @@ function renderInspector(){
     return;
   }
   const dis = it.locked ? 'disabled' : '';
-  const specific = it.type==='highlight' ? `
+  const specific = it.type==='comment' ? `
+    <div class="chip" style="margin-bottom:8px">${esc(t('exp.page'))} ${it.page} · n° ${cmtNumber(it.id)}</div>
+    <label class="f">${esc(t('insp.commentText'))}</label>
+    <textarea id="fTxt" rows="4" ${dis}>${esc(it.text||'')}</textarea>
+    <label class="f">${esc(t('insp.author'))}</label>
+    <input type="text" id="fAuth" value="${esc(it.author||'')}" ${dis}>
+    <label class="f">${esc(t('insp.color'))}</label>
+    ${swatchHtml('fCol', it.color, it.locked, 'cmt')}
+    <div class="row" style="margin-top:8px">
+      <div><label class="f">${esc(t('insp.width'))}</label>
+        <input type="number" id="fW" value="${it.w.toFixed(1)}" step="1" ${dis}></div>
+      <div><label class="f">${esc(t('insp.height'))}</label>
+        <input type="number" id="fH" value="${it.h.toFixed(1)}" step="1" ${dis}></div>
+    </div>
+    <button id="fEdit" style="width:100%;margin-top:8px" ${dis}>${esc(t('insp.editText'))}</button>`
+  : it.type==='highlight' ? `
     <label class="f">${esc(t('insp.color'))}</label>
     ${swatchHtml('fCol', it.color, it.locked, 'hl')}
     <div class="row" style="margin-top:8px">
@@ -1093,7 +1187,8 @@ function renderInspector(){
   box.innerHTML = `
     <div class="chip" style="margin-bottom:6px">
       ${esc(it.type==='image' ? t('insp.image')+' · '+(it.name||'')
-            : it.type==='highlight' ? t('insp.highlight') : t('insp.textType'))}
+            : it.type==='highlight' ? t('insp.highlight')
+            : it.type==='comment' ? t('insp.comment') : t('insp.textType'))}
       ${it.locked?`<span class="badge ok">${esc(t('insp.validated'))}</span>`:''}
     </div>
     ${specific}
@@ -1128,7 +1223,19 @@ function renderInspector(){
     snapshot(); it.page=p;
     if(p!==Doc.page) goPage(p); else drawItems();
   };
-  if(it.type==='highlight'){
+  if(it.type==='comment'){
+    bindSwatch('fCol', (v, done)=>{
+      it.color=v;
+      const el=$(`.item[data-id="${it.id}"]`); if(el) el.style.setProperty('--cc', v);
+      if(done){ localStorage.setItem('pdfed.cmt.color', v); drawItems(); }
+    }, 'cmt');
+    $('#fTxt').onchange  = e=>upd(()=>{ it.text=e.target.value; });
+    $('#fAuth').onchange = e=>upd(()=>{ it.author=e.target.value.trim();
+                                        localStorage.setItem('pdfed.author', it.author); });
+    $('#fW').onchange = e=>upd(()=>{ it.w=Math.max(6,+e.target.value); });
+    $('#fH').onchange = e=>upd(()=>{ it.h=Math.max(6,+e.target.value); });
+    $('#fEdit').onclick = ()=>editComment(it, false);
+  } else if(it.type==='highlight'){
     bindSwatch('fCol', (v, done)=>{
       it.color=v;
       const d=$(`.item[data-id="${it.id}"] .hl`); if(d) d.style.background=v;
@@ -1170,6 +1277,7 @@ function renderItemList(){
       <span class="mono">${esc(t('insp.page'))} ${it.page}</span>
       <span class="t">${esc(it.type==='image' ? (it.name||t('insp.image'))
         : it.type==='highlight' ? t('insp.highlight')
+        : it.type==='comment' ? cmtNumber(it.id)+'. '+String(it.text||'').split('\n')[0].slice(0,20)
         : String(it.text||'').split('\n')[0].slice(0,24))}</span>
       <span class="badge${it.locked?' ok':''}">${it.locked?'✓':'·'}</span>
       <button class="del" data-del="${it.id}" title="${esc(t('insp.delete'))}">🗑</button>
@@ -1230,6 +1338,7 @@ async function exportPdf(){
       const page = pages[it.page-1]; if(!page) continue;
       const vp1 = Doc.vp1.get(it.page), pageRot = Doc.rot.get(it.page)||0;
 
+      if(it.type==='comment'){ continue; }          // traités plus bas, en bloc
       if(it.type==='highlight'){
         const p = toPdf(vp1, it, pageRot, -it.w/2, -it.h/2);
         page.drawRectangle({x:p.x, y:p.y, width:it.w, height:it.h,
@@ -1258,6 +1367,7 @@ async function exportPdf(){
         }
       }
     }
+    await buildComments(out, pages, getFont);
     await saveBytes(await out.save(), Doc.name.replace(/\.pdf$/i,'') + '-signed.pdf');
     toast(t('t.pdfDone'),'ok');
   }catch(err){
@@ -1265,6 +1375,133 @@ async function exportPdf(){
     toast(err.message==='locked' ? t('t.lockedExport') : t('t.genFail',{e:err.message}), 'err');
   }finally{ btns.forEach((b,i)=>{ b.disabled=false; b.innerHTML=prev[i]; }); }
 }
+/* ---------------------------------------------------------------------
+   Commentaires à l'export.
+
+   Trois constats tirés des essais sur iOS gouvernent ce code :
+   - l'apparence (/AP) d'une annotation /Link n'est pas dessinée par tous
+     les lecteurs : ce qui doit être vu va donc dans le flux de contenu ;
+   - une annotation de balisage posée sous un lien capte le toucher :
+     la pastille cliquable est placée hors du cadre, sans recouvrement ;
+   - /Highlight est le type de balisage qui ouvre le plus fidèlement sa
+     bulle : c'est lui qui porte le texte du commentaire.
+   Le flux de contenu d'origine n'est jamais réécrit, seulement complété.
+   --------------------------------------------------------------------- */
+function wrapPdf(txt, font, size, maxW){
+  const out = [];
+  for(const para of String(txt).split('\n')){
+    let line = '';
+    for(const word of para.split(' ')){
+      const test = line ? line+' '+word : word;
+      if(font.widthOfTextAtSize(test, size) > maxW && line){ out.push(line); line = word; }
+      else line = test;
+    }
+    out.push(line);
+  }
+  return out;
+}
+async function buildComments(out, pages, getFont){
+  const list = commentsInOrder();
+  if(!list.length) return;
+  const { PDFName, PDFString, PDFArray, PDFNumber, degrees, rgb } = PDFLib;
+  const ctx  = out.context;
+  const reg  = await getFont(DEFAULT_FONT, 'n');
+  const bold = await getFont(DEFAULT_FONT, 'b');
+  const annotsOf = page=>{
+    let a = page.node.lookup(PDFName.of('Annots'), PDFArray);
+    if(!a){ a = ctx.obj([]); page.node.set(PDFName.of('Annots'), a); }
+    return a;
+  };
+  const goTo = (ref, y)=> ctx.obj({ S:'GoTo',
+    D: ctx.obj([ref, PDFName.of('XYZ'), PDFNumber.of(0), PDFNumber.of(y), null]) });
+
+  /* --- pages d'annexe --------------------------------------------------- */
+  const first = pages[0] ? pages[0].getSize() : {width:595, height:842};
+  const W = first.width, H = first.height, MA = 64, TW = W - MA*2 - 30;
+  let annex = out.addPage([W,H]), y = H - 64;
+  const header = page=>{
+    page.drawText(t('exp.annexTitle'), {x:MA, y:H-56, size:15, font:bold, color:rgb(.1,.11,.17)});
+    page.drawLine({start:{x:MA,y:H-66}, end:{x:W-MA,y:H-66}, thickness:.7, color:rgb(.72,.74,.8)});
+  };
+  header(annex); y = H - 104;
+  const dests = [];
+
+  list.forEach((it,i)=>{
+    const lines = wrapPdf(it.text || '', reg, 10, TW);
+    const need  = 34 + lines.length*14 + 34;
+    if(y - need < 64){ annex = out.addPage([W,H]); header(annex); y = H - 104; }
+    const c = hexRgb(it.color);
+    annex.drawCircle({x:MA+9, y:y+4, size:9.5, color:c});
+    annex.drawText(String(i+1), {x:MA+6.2, y:y+.6, size:10, font:bold, color:rgb(1,1,1)});
+    const titre = `${t('exp.page')} ${it.page}${it.author ? '  ·  '+it.author : ''}`;
+    annex.drawText(titre, {x:MA+28, y:y, size:10.5, font:bold, color:rgb(.12,.13,.2)});
+    y -= 18;
+    lines.forEach(l=>{ annex.drawText(l, {x:MA+28, y:y, size:10, font:reg, color:rgb(.12,.13,.2)}); y -= 14; });
+    y -= 12;
+    const bw = Math.min(200, reg.widthOfTextAtSize(t('exp.back'), 9.5) + 26);
+    annex.drawRectangle({x:MA+28, y:y-4, width:bw, height:21, borderWidth:1,
+      borderColor:rgb(.55,.58,.68), color:rgb(.95,.96,.98)});
+    annex.drawText(t('exp.back'), {x:MA+37, y:y+2.5, size:9.5, font:reg, color:rgb(.2,.22,.32)});
+    dests.push({annex, top:y+70, btn:[MA+28, y-4, MA+28+bw, y+17]});
+    y -= 40;
+  });
+
+  /* --- marques sur les pages, annotations, aller-retour ------------------ */
+  list.forEach((it,i)=>{
+    const page = pages[it.page-1]; if(!page) return;
+    const vp1 = Doc.vp1.get(it.page), pageRot = Doc.rot.get(it.page) || 0;
+    const c = hexRgb(it.color);
+    const corner = (lx,ly)=> toPdf(vp1, it, pageRot, lx, ly);
+    const ul = corner(-it.w/2,  it.h/2), ur = corner( it.w/2,  it.h/2);
+    const ll = corner(-it.w/2, -it.h/2), lr = corner( it.w/2, -it.h/2);
+    const badge = corner(-it.w/2 - 17, it.h/2 - 10);
+
+    /* dessiné dans le contenu : visible partout, y compris à l'impression */
+    page.drawRectangle({x:ll.x, y:ll.y, width:it.w, height:it.h,
+      borderWidth:1.4, borderColor:c, rotate:degrees(ll.theta)});
+    page.drawCircle({x:badge.x, y:badge.y, size:9.5, color:c});
+    page.drawText(String(i+1), {x:badge.x-2.9, y:badge.y-3.6, size:10, font:bold, color:rgb(1,1,1)});
+
+    const A = annotsOf(page);
+    /* déclencheur de la bulle : surlignage translucide sur la zone */
+    const popRef = ctx.nextRef(), hlRef = ctx.nextRef();
+    const ops = `q ${c.red} ${c.green} ${c.blue} rg 0 0 ${it.w.toFixed(2)} ${it.h.toFixed(2)} re f Q`;
+    const apRef = ctx.register(ctx.flateStream(ops, {
+      Type:'XObject', Subtype:'Form', FormType:1,
+      BBox: ctx.obj([0,0,it.w,it.h]), Resources: ctx.obj({})
+    }));
+    ctx.assign(hlRef, ctx.obj({
+      Type:'Annot', Subtype:'Highlight', F:4,
+      Rect: ctx.obj([Math.min(ul.x,ur.x,ll.x,lr.x), Math.min(ul.y,ur.y,ll.y,lr.y),
+                     Math.max(ul.x,ur.x,ll.x,lr.x), Math.max(ul.y,ur.y,ll.y,lr.y)]),
+      QuadPoints: ctx.obj([ul.x,ul.y, ur.x,ur.y, ll.x,ll.y, lr.x,lr.y]),
+      C: ctx.obj([c.red, c.green, c.blue]), CA: 0.15,
+      T: PDFString.of(it.author || ''),
+      Contents: PDFString.of(`${i+1}. ${it.text || ''}`),
+      NM: PDFString.of('cmt-'+(i+1)),
+      M: PDFString.fromDate(new Date()), CreationDate: PDFString.fromDate(new Date()),
+      AP: ctx.obj({ N: apRef }), Popup: popRef
+    }));
+    ctx.assign(popRef, ctx.obj({ Type:'Annot', Subtype:'Popup', Parent:hlRef, Open:false,
+      Rect: ctx.obj([Math.max(20, ll.x), Math.max(20, ll.y-110), Math.max(260, ll.x+240), Math.max(120, ll.y-8)]) }));
+    A.push(hlRef); A.push(popRef);
+
+    /* aller : lien invisible sur la pastille, isolé du surlignage */
+    const d = dests[i];
+    A.push(ctx.register(ctx.obj({
+      Type:'Annot', Subtype:'Link', F:4,
+      Rect: ctx.obj([badge.x-11, badge.y-11, badge.x+11, badge.y+11]),
+      Border: ctx.obj([0,0,0]), A: goTo(d.annex.ref, d.top)
+    })));
+    /* retour : depuis le bouton de l'annexe vers le passage */
+    annotsOf(d.annex).push(ctx.register(ctx.obj({
+      Type:'Annot', Subtype:'Link', F:4, Rect: ctx.obj(d.btn),
+      Border: ctx.obj([0,0,0]),
+      A: goTo(page.ref, Math.max(ul.y, ur.y) + 40)
+    })));
+  });
+}
+
 async function saveBytes(bytes, filename){
   const blob = new Blob([bytes], {type:'application/pdf'});
   if(window.showSaveFilePicker){
