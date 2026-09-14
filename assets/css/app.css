@@ -116,6 +116,10 @@ header{padding-top:max(8px,env(safe-area-inset-top))}
   word-break:break-all;line-height:1.35;padding-top:2px;font-size:12px}
 .spacer{flex:1 1 auto;min-width:2px}
 .pager{display:flex;align-items:center;gap:5px;flex:0 0 auto}
+/* Groupes de la barre d'outils : navigation d'un côté, ajouts et historique de
+   l'autre. Si la largeur ne suffit pas, ils passent à la ligne d'un bloc. */
+.grp{display:flex;align-items:center;gap:6px;flex:0 0 auto}
+.toolbar .spacer{min-width:8px}
 .pager #pNum{width:54px;text-align:center;font-size:15px;font-weight:600;padding:5px 4px}
 .pager .tot{font-size:15px;font-weight:600;color:var(--muted);white-space:nowrap}
 .zlbl{font-family:var(--mono);width:46px;text-align:center;color:var(--muted);flex:0 0 auto}
@@ -168,7 +172,7 @@ aside.right{border-left:1px solid var(--line)}
    La pastille est décalée hors du cadre, comme à l'export. */
 .item.cmt{mix-blend-mode:normal}
 .item .cmt-box{position:absolute;inset:0;border:1.6px solid var(--cc,#cc2a2e);border-radius:2px}
-.item .cmt-tint{position:absolute;inset:0;background:var(--cc,#cc2a2e);opacity:.12;border-radius:2px}
+.item .cmt-tint{position:absolute;inset:0;background:var(--cc,#cc2a2e);opacity:.06;border-radius:2px}
 .item .cmt-n{position:absolute;left:-24px;top:-2px;width:20px;height:20px;border-radius:50%;
   background:var(--cc,#cc2a2e);color:#fff;font-size:11px;font-weight:700;display:flex;
   align-items:center;justify-content:center;line-height:1;pointer-events:none}
@@ -257,6 +261,7 @@ button.rel.has .dot{display:block}
 
 /* ---------- mobile : tout doit tenir, aucun défilement horizontal ---------- */
 @media (max-width:900px){
+  .grp{gap:4px}
   .only-sm{display:inline-flex}
   .hide-sm{display:none!important}
   main{grid-template-columns:1fr}

@@ -28,10 +28,13 @@ function modal(html){ $('#modal').innerHTML=html; $('#mask').classList.add('on')
 function closeModal(){ $('#mask').classList.remove('on'); $('#modal').innerHTML=''; }
 window.closeModal = closeModal;
 $('#mask').addEventListener('pointerdown', e=>{ if(e.target.id==='mask') closeModal(); });
+/* La CSP interdit les gestionnaires en ligne (script-src 'self' sans 'unsafe-inline') :
+   les boutons de fermeture sont donc câblés par délégation. */
+$('#mask').addEventListener('click', e=>{ if(e.target.closest('[data-close]')) closeModal(); });
 
 /* composant de choix de couleur : pastille lisible + pipette native masquée */
 const PRESETS = {
-  text: ['#111133','#000000','#1a4fd6','#c62828','#1b7a4b','#6d4c41'],
+  text: ['#111133','#1a4fd6','#c62828','#1b7a4b','#6d4c41','#6b7280'],
   hl:   ['#ffe14d','#b6f2a1','#9fd8ff','#ffb3d9','#ffc48a','#d6c2ff'],
   cmt:  ['#cc2a2e','#1a4fd6','#b8860b','#1b7a4b','#7b2fbe','#333a4d']
 };
@@ -47,7 +50,8 @@ function pushRecent(kind, c){
 }
 function paletteFor(kind, current){
   const seen = new Set(), out = [];
-  for(const c of [...recentColors(kind), ...PRESETS[kind], current]){
+  /* le noir reste systématiquement la première pastille */
+  for(const c of ['#000000', ...recentColors(kind), ...PRESETS[kind], current]){
     const k = String(c).toLowerCase();
     if(!seen.has(k)){ seen.add(k); out.push(c); }
   }
@@ -357,7 +361,7 @@ $('#fileImg').onchange  = e=>{ importFiles([...e.target.files]); e.target.value=
 function renameAsset(a){
   modal(`<h3>${esc(t('m.rename'))}</h3><p>${esc(t('m.renameHint'))}</p>
     <input type="text" id="rn" value="${esc(a.name)}">
-    <div class="foot"><button onclick="closeModal()">${esc(t('m.cancel'))}</button>
+    <div class="foot"><button data-close>${esc(t('m.cancel'))}</button>
       <button class="primary" id="rok">${esc(t('m.rename'))}</button></div>`);
   $('#rn').select();
   $('#rok').onclick = async ()=>{
@@ -367,7 +371,7 @@ function renameAsset(a){
 }
 function deleteAsset(a){
   modal(`<h3>${esc(t('m.delTitle',{name:a.name}))}</h3><p>${esc(t('m.delBody'))}</p>
-    <div class="foot"><button onclick="closeModal()">${esc(t('m.cancel'))}</button>
+    <div class="foot"><button data-close>${esc(t('m.cancel'))}</button>
       <button class="primary" id="dok">${esc(t('m.delete'))}</button></div>`);
   $('#dok').onclick = async ()=>{
     await dbDel('assets', a.id);
@@ -397,7 +401,7 @@ async function wipeLibrary(){
     modal(`<h3>${esc(t('m.wipeTitle'))}</h3><p>${esc(t('m.wipeLocked',{n}))}</p>${warn}
       <label class="f">${esc(t('m.wipeType',{word}))}</label>
       <input type="text" id="wConf" autocomplete="off" autocapitalize="characters" spellcheck="false">
-      <div class="foot"><button onclick="closeModal()">${esc(t('m.cancel'))}</button>
+      <div class="foot"><button data-close>${esc(t('m.cancel'))}</button>
         <button class="primary" id="wok" disabled>${esc(t('m.wipeGo'))}</button></div>`);
     const check = ()=>{ $('#wok').disabled = $('#wConf').value.trim().toUpperCase() !== word.toUpperCase(); };
     $('#wConf').oninput = check;
@@ -407,7 +411,7 @@ async function wipeLibrary(){
   } else {
     modal(`<h3>${esc(t('m.wipeTitle'))}</h3><p>${esc(t('m.wipeUnlocked',{n}))}</p>${warn}
       ${Vault.enabled ? `<label class="f"><input type="checkbox" id="wProt">${esc(t('m.wipeDropProt'))}</label>` : ''}
-      <div class="foot"><button onclick="closeModal()">${esc(t('m.cancel'))}</button>
+      <div class="foot"><button data-close>${esc(t('m.cancel'))}</button>
         <button class="primary" id="wok">${esc(t('m.wipeGo'))}</button></div>`);
     $('#wok').onclick = ()=>doWipe(Vault.enabled && $('#wProt').checked);
   }
@@ -438,7 +442,7 @@ async function cutoutAsset(a){
     <label class="f">${esc(t('m.cutThreshold'))} : <span id="thL" class="mono">210</span></label>
     <input type="range" id="th" min="80" max="250" value="210">
     <label class="f"><input type="checkbox" id="mono">${esc(t('m.cutBlack'))}</label>
-    <div class="foot"><button onclick="closeModal()">${esc(t('m.cancel'))}</button>
+    <div class="foot"><button data-close>${esc(t('m.cancel'))}</button>
       <button id="cNew">${esc(t('m.cutCopy'))}</button>
       <button class="primary" id="cRep">${esc(t('m.cutReplace'))}</button></div>`);
   const img = await new Promise(r=>{ const i=new Image(); i.onload=()=>r(i); i.src=url; });
@@ -492,7 +496,7 @@ $('#btnDraw').onclick = ()=>{
     ${swatchHtml('pc','#111133')}
     <div class="foot">
       <button class="left" id="pclr">${esc(t('m.drawClear'))}</button>
-      <button onclick="closeModal()">${esc(t('m.cancel'))}</button>
+      <button data-close>${esc(t('m.cancel'))}</button>
       <button class="primary" id="psave">${esc(t('m.drawSave'))}</button></div>`);
   const cv=$('#padCanvas'), ctx=cv.getContext('2d');
   let ink = '#111133';
@@ -536,7 +540,7 @@ $('#btnVault').onclick = ()=>{
     modal(`<h3>${esc(t('m.vaultTitle'))}</h3><p>${esc(t('m.vaultBody'))}</p>
       <label class="f">${esc(t('m.vaultPwd'))}</label><input type="password" id="v1" autocomplete="new-password">
       <label class="f">${esc(t('m.vaultPwd2'))}</label><input type="password" id="v2" autocomplete="new-password">
-      <div class="foot"><button onclick="closeModal()">${esc(t('m.cancel'))}</button>
+      <div class="foot"><button data-close>${esc(t('m.cancel'))}</button>
         <button class="primary" id="vok">${esc(t('m.vaultEnable'))}</button></div>`);
     $('#vok').onclick = async ()=>{
       const a=$('#v1').value, b=$('#v2').value;
@@ -548,7 +552,7 @@ $('#btnVault').onclick = ()=>{
   } else if(Vault.locked){
     modal(`<h3>${esc(t('m.vaultUnlockTitle'))}</h3><p>${esc(t('m.vaultUnlockBody'))}</p>
       <input type="password" id="v1" autocomplete="current-password">
-      <div class="foot"><button onclick="closeModal()">${esc(t('m.cancel'))}</button>
+      <div class="foot"><button data-close>${esc(t('m.cancel'))}</button>
         <button class="primary" id="vok">${esc(t('lib.unlock'))}</button></div>`);
     $('#vok').onclick = async ()=>{
       if(await Vault.unlock($('#v1').value)){ closeModal(); await libLoad(); drawItems(); toast(t('t.vaultUnlocked'),'ok'); }
@@ -560,7 +564,7 @@ $('#btnVault').onclick = ()=>{
       <div class="foot">
         <button id="vdis" class="danger left">${esc(t('m.vaultRemove'))}</button>
         <button id="vlock">${esc(t('m.vaultLock'))}</button>
-        <button class="primary" onclick="closeModal()">${esc(t('m.close'))}</button></div>`);
+        <button class="primary" data-close>${esc(t('m.close'))}</button></div>`);
     $('#vlock').onclick = ()=>{ Vault.lock(); revokeUrls(); closeModal(); libRender(); drawItems(); toast(t('t.vaultLocked'),'ok'); };
     $('#vdis').onclick  = async ()=>{ await Vault.disable(); closeModal(); await libLoad(); toast(t('t.protectionRemoved'),'ok'); };
   }
@@ -616,7 +620,7 @@ function closeDoc(){
   if(!Doc.pdf) return;
   if(!Doc.items.length) return doCloseDoc();
   modal(`<h3>${esc(t('m.closeTitle'))}</h3><p>${esc(t('m.closeBody'))}</p>
-    <div class="foot"><button onclick="closeModal()">${esc(t('m.cancel'))}</button>
+    <div class="foot"><button data-close>${esc(t('m.cancel'))}</button>
       <button id="cdSave">${esc(t('nav.save'))}</button>
       <button class="primary" id="cdGo">${esc(t('m.closeGo'))}</button></div>`);
   $('#cdSave').onclick = async ()=>{ closeModal(); await exportPdf(); };
@@ -852,8 +856,39 @@ function placeText(txt){
   Doc.items.push(it); Doc.sel=it.id; drawItems();
   if(isSmall()) drawer('#paneInsp', true);
 }
-bind(['#btnText','#btnTextSm'], ()=>placeText(t('insp.textType')));
-bind(['#btnDate','#btnDateSm'], ()=>placeText(new Date().toLocaleDateString(locale())));
+bind(['#btnText'], askText);
+/* Saisie préalable, avec insertion de la date et de l'heure au point du curseur.
+   Remplace l'ancien bouton Date de la barre d'outils. */
+function askText(){
+  if(!Doc.pdf){ toast(t('t.openFirst'),'err'); return; }
+  modal(`<h3>${esc(t('m.textTitle'))}</h3>
+    <textarea id="tTxt" rows="4" placeholder="${esc(t('m.textPh'))}"></textarea>
+    <div class="row" style="margin-top:8px">
+      <button id="tDate">${esc(t('m.insDate'))}</button>
+      <button id="tTime">${esc(t('m.insTime'))}</button>
+      <button id="tBoth">${esc(t('m.insDateTime'))}</button>
+    </div>
+    <div class="foot"><button data-close>${esc(t('m.cancel'))}</button>
+      <button class="primary" id="tOk">${esc(t('m.ok'))}</button></div>`);
+  const ta = $('#tTxt');
+  const insert = str=>{
+    const a = ta.selectionStart ?? ta.value.length, b = ta.selectionEnd ?? a;
+    ta.value = ta.value.slice(0,a) + str + ta.value.slice(b);
+    ta.selectionStart = ta.selectionEnd = a + str.length;
+    ta.focus();
+  };
+  const now = ()=> new Date();
+  $('#tDate').onclick = ()=> insert(now().toLocaleDateString(locale()));
+  $('#tTime').onclick = ()=> insert(now().toLocaleTimeString(locale(), {hour:'2-digit', minute:'2-digit'}));
+  $('#tBoth').onclick = ()=> insert(now().toLocaleDateString(locale()) + ' ' +
+    now().toLocaleTimeString(locale(), {hour:'2-digit', minute:'2-digit'}));
+  ta.focus();
+  $('#tOk').onclick = ()=>{
+    const v = ta.value.replace(/\s+$/,'');
+    closeModal();
+    if(v) placeText(v);
+  };
+}
 
 const selected = ()=> Doc.items.find(i=>i.id===Doc.sel) || null;
 const isRect = it => it && (it.type==='comment' || it.type==='highlight');
@@ -1049,6 +1084,7 @@ async function addHighlights(sel){
     }
   }
   Doc.sel = Doc.items[Doc.items.length-1].id;
+  setMode(null);                 // l'outil se désarme une fois le surlignage posé
   drawItems();
 }
 const CMT_COLOR = '#cc2a2e';
@@ -1062,6 +1098,15 @@ function addComment(r){
 }
 /* Saisie du texte. À la création, un commentaire vide est simplement abandonné. */
 function editComment(it, isNew){
+  /* si l'on abandonne la saisie, l'outil se désarme aussi */
+  if(isNew){
+    const off = e=>{
+      if(e.target.closest('[data-close]') || e.target.id==='mask'){
+        setMode(null); $('#mask').removeEventListener('click', off);
+      }
+    };
+    $('#mask').addEventListener('click', off);
+  }
   modal(`<h3>${esc(t('m.commentTitle'))}${isNew?'':' '+cmtNumber(it.id)}</h3>
     <p>${esc(t('m.commentBody'))}</p>
     <label class="f">${esc(t('insp.author'))}</label>
@@ -1070,21 +1115,21 @@ function editComment(it, isNew){
     <textarea id="cTxt" rows="5" placeholder="${esc(t('m.commentPh'))}">${esc(it.text||'')}</textarea>
     <label class="f">${esc(t('insp.color'))}</label>
     ${swatchHtml('cCol', it.color, false, 'cmt')}
-    <div class="foot"><button onclick="closeModal()">${esc(t('m.cancel'))}</button>
+    <div class="foot"><button data-close>${esc(t('m.cancel'))}</button>
       <button class="primary" id="cOk">${esc(t('m.ok'))}</button></div>`);
   let color = it.color;
   bindSwatch('cCol', v=>{ color = v; }, 'cmt');
   $('#cTxt').focus();
   $('#cOk').onclick = ()=>{
     const txt = $('#cTxt').value.trim();
-    if(isNew && !txt){ closeModal(); toast(t('t.cmtEmpty')); return; }
+    if(isNew && !txt){ setMode(null); closeModal(); toast(t('t.cmtEmpty')); return; }
     snapshot();
     it.text = txt;
     it.author = $('#cAuth').value.trim();
     it.color = color;
     localStorage.setItem('pdfed.author', it.author);
     localStorage.setItem('pdfed.cmt.color', color);
-    if(isNew){ Doc.items.push(it); Doc.sel = it.id; }
+    if(isNew){ Doc.items.push(it); Doc.sel = it.id; setMode(null); }
     closeModal(); drawItems();
     if(isNew) toast(t('t.cmtAdded'),'ok');
   };
@@ -1456,43 +1501,49 @@ async function buildComments(out, pages, getFont){
     const ll = corner(-it.w/2, -it.h/2), lr = corner( it.w/2, -it.h/2);
     const badge = corner(-it.w/2 - 17, it.h/2 - 10);
 
-    /* dessiné dans le contenu : visible partout, y compris à l'impression */
+    /* dessiné dans le contenu : visible partout, y compris à l'impression,
+       et d'une opacité que le lecteur ne peut pas réinterpréter */
     page.drawRectangle({x:ll.x, y:ll.y, width:it.w, height:it.h,
-      borderWidth:1.4, borderColor:c, rotate:degrees(ll.theta)});
+      color:c, opacity:0.06, borderWidth:1.4, borderColor:c,
+      rotate:degrees(ll.theta)});
     page.drawCircle({x:badge.x, y:badge.y, size:9.5, color:c});
     page.drawText(String(i+1), {x:badge.x-2.9, y:badge.y-3.6, size:10, font:bold, color:rgb(1,1,1)});
 
-    const A = annotsOf(page);
-    /* déclencheur de la bulle : surlignage translucide sur la zone */
-    const popRef = ctx.nextRef(), hlRef = ctx.nextRef();
-    const ops = `q ${c.red} ${c.green} ${c.blue} rg 0 0 ${it.w.toFixed(2)} ${it.h.toFixed(2)} re f Q`;
-    const apRef = ctx.register(ctx.flateStream(ops, {
-      Type:'XObject', Subtype:'Form', FormType:1,
-      BBox: ctx.obj([0,0,it.w,it.h]), Resources: ctx.obj({})
-    }));
-    ctx.assign(hlRef, ctx.obj({
-      Type:'Annot', Subtype:'Highlight', F:4,
-      Rect: ctx.obj([Math.min(ul.x,ur.x,ll.x,lr.x), Math.min(ul.y,ur.y,ll.y,lr.y),
-                     Math.max(ul.x,ur.x,ll.x,lr.x), Math.max(ul.y,ur.y,ll.y,lr.y)]),
-      QuadPoints: ctx.obj([ul.x,ul.y, ur.x,ur.y, ll.x,ll.y, lr.x,lr.y]),
-      C: ctx.obj([c.red, c.green, c.blue]), CA: 0.15,
-      T: PDFString.of(it.author || ''),
-      Contents: PDFString.of(`${i+1}. ${it.text || ''}`),
-      NM: PDFString.of('cmt-'+(i+1)),
-      M: PDFString.fromDate(new Date()), CreationDate: PDFString.fromDate(new Date()),
-      AP: ctx.obj({ N: apRef }), Popup: popRef
-    }));
-    ctx.assign(popRef, ctx.obj({ Type:'Annot', Subtype:'Popup', Parent:hlRef, Open:false,
-      Rect: ctx.obj([Math.max(20, ll.x), Math.max(20, ll.y-110), Math.max(260, ll.x+240), Math.max(120, ll.y-8)]) }));
-    A.push(hlRef); A.push(popRef);
+    const A = annotsOf(page), d = dests[i];
+    const bbox = [Math.min(ul.x,ur.x,ll.x,lr.x), Math.min(ul.y,ur.y,ll.y,lr.y),
+                  Math.max(ul.x,ur.x,ll.x,lr.x), Math.max(ul.y,ur.y,ll.y,lr.y)];
 
-    /* aller : lien invisible sur la pastille, isolé du surlignage */
-    const d = dests[i];
+    /* Aucun balisage n'est posé sur le texte : un /Highlight y déclenche la
+       sélection de texte plutôt que sa bulle sur certains lecteurs. La zone
+       entière devient un lien vers la note, mécanisme accepté partout. */
+    A.push(ctx.register(ctx.obj({
+      Type:'Annot', Subtype:'Link', F:4, Rect: ctx.obj(bbox),
+      Border: ctx.obj([0,0,0]), A: goTo(d.annex.ref, d.top)
+    })));
+    /* la pastille, isolée dans la marge, mène à la même note */
     A.push(ctx.register(ctx.obj({
       Type:'Annot', Subtype:'Link', F:4,
       Rect: ctx.obj([badge.x-11, badge.y-11, badge.x+11, badge.y+11]),
       Border: ctx.obj([0,0,0]), A: goTo(d.annex.ref, d.top)
     })));
+    /* note autocollante dans la marge, sous la pastille : elle porte le texte
+       pour les lecteurs qui savent ouvrir une bulle, sans recouvrir aucun lien */
+    /* sur un cadre bas, la note remonte pour ne pas déborder sous le texte */
+    const note = corner(-it.w/2 - 17, Math.max(-it.h/2 + 10, it.h/2 - 38));
+    const popRef = ctx.nextRef(), noteRef = ctx.nextRef();
+    ctx.assign(noteRef, ctx.obj({
+      Type:'Annot', Subtype:'Text', F:4, Name:'Comment',
+      Rect: ctx.obj([note.x-10, note.y-10, note.x+10, note.y+10]),
+      C: ctx.obj([c.red, c.green, c.blue]), Open:false,
+      T: PDFString.of(it.author || ''),
+      Contents: PDFString.of(`${i+1}. ${it.text || ''}`),
+      NM: PDFString.of('cmt-'+(i+1)),
+      M: PDFString.fromDate(new Date()), CreationDate: PDFString.fromDate(new Date()),
+      Popup: popRef
+    }));
+    ctx.assign(popRef, ctx.obj({ Type:'Annot', Subtype:'Popup', Parent:noteRef, Open:false,
+      Rect: ctx.obj([Math.max(20, ll.x), Math.max(20, ll.y-110), Math.max(260, ll.x+240), Math.max(120, ll.y-8)]) }));
+    A.push(noteRef); A.push(popRef);
     /* retour : depuis le bouton de l'annexe vers le passage */
     annotsOf(d.annex).push(ctx.register(ctx.obj({
       Type:'Annot', Subtype:'Link', F:4, Rect: ctx.obj(d.btn),

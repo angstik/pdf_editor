@@ -192,12 +192,16 @@ le cadre et la pastille numérotée — est donc écrit dans le flux de contenu 
 rend visible partout et à l'impression, sans réécrire un seul opérateur d'origine. Ensuite, une
 annotation de balisage placée sous un lien capte le toucher et empêche de l'atteindre : la
 pastille cliquable est donc posée dans la marge, hors du rectangle du cadre, sans recouvrement.
-Enfin, `/Highlight` est le type de balisage qui ouvre le plus fidèlement sa bulle : c'est lui qui
-porte le texte du commentaire, en teinte à 15 %. Chaque commentaire produit ainsi un cadre et un
-numéro dessinés, un `/Highlight` translucide pour la bulle, un `/Link` sur la pastille vers la
-page d'annexe, et un `/Link` de retour depuis l'annexe vers le passage exact. Le rendu du
-surlignage reste à la main du lecteur : certains, dont poppler, redessinent les extrémités
-arrondies à partir des `/QuadPoints` plutôt que d'utiliser l'apparence fournie.
+Enfin, aucun balisage n'est posé par-dessus le texte : un `/Highlight` y déclenche la sélection
+de texte plutôt que sa bulle sur certains lecteurs, et son opacité comme ses contours sont
+réinterprétés à chaque fois. Chaque commentaire produit donc un cadre, une teinte à 6 % et un
+numéro **dessinés dans le contenu**, un `/Link` couvrant la zone et un second sur la pastille,
+tous deux vers la note en annexe, un `/Link` de retour depuis l'annexe, et une note `/Text`
+isolée dans la marge qui porte le texte pour les lecteurs sachant ouvrir une bulle.
+
+**Gestionnaires en ligne.** La politique de sécurité interdit `script-src 'unsafe-inline'` :
+tout attribut `onclick` du balisage est donc silencieusement ignoré. Les boutons de fermeture
+des fenêtres portent un attribut `data-close` et sont câblés par délégation depuis JavaScript.
 
 **Polices.** Montserrat et Roboto sont livrées sous forme d'instances statiques (poids 400 et 700,
 romain et italique) extraites des polices variables du dépôt `google/fonts` avec

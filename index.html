@@ -37,28 +37,27 @@
 </header>
 
 <div class="toolbar">
-  <span class="pager">
+  <span class="grp">
     <button id="pPrev" class="icon glyph-lg" data-i18n-title="tool.prev" aria-label="">‹</button>
     <input type="text" id="pNum" value="–" inputmode="numeric" data-i18n-title="tool.pageNumber" aria-label="">
     <span class="tot" id="pTot">/ –</span>
     <button id="pNext" class="icon glyph-lg" data-i18n-title="tool.next" aria-label="">›</button>
+    <span class="sep hide-sm"></span>
+    <button id="zOut" class="icon glyph-lg hide-sm" data-i18n-title="tool.zoomOut" aria-label="">−</button>
+    <span class="zlbl hide-sm" id="zLbl">100%</span>
+    <button id="zIn" class="icon glyph-lg hide-sm" data-i18n-title="tool.zoomIn" aria-label="">+</button>
+    <button id="zFit" class="ghost hide-sm" data-i18n="tool.fit"></button>
+    <button id="zFitSm" class="icon only-sm ghost" data-i18n-title="tool.fitLong" aria-label="">⤢</button>
   </span>
-  <span class="sep hide-sm"></span>
-  <button id="zOut" class="icon glyph-lg hide-sm" data-i18n-title="tool.zoomOut" aria-label="">−</button>
-  <span class="zlbl hide-sm" id="zLbl">100%</span>
-  <button id="zIn" class="icon glyph-lg hide-sm" data-i18n-title="tool.zoomIn" aria-label="">+</button>
-  <button id="zFit" class="ghost hide-sm" data-i18n="tool.fit"></button>
-  <button id="zFitSm" class="icon only-sm ghost" data-i18n-title="tool.fitLong" aria-label="">⤢</button>
-  <span class="sep hide-sm"></span>
-  <button id="btnUndo" class="icon glyph-lg" data-i18n-title="tool.undo" aria-label="">↶</button>
-  <button id="btnRedo" class="icon glyph-lg" data-i18n-title="tool.redo" aria-label="">↷</button>
   <span class="spacer"></span>
-  <button id="btnText" class="hide-sm" data-i18n="tool.addText"></button>
-  <button id="btnTextSm" class="icon only-sm" data-i18n-title="tool.addText" aria-label="">T</button>
-  <button id="btnDate" class="ghost hide-sm" data-i18n="tool.todayShort" data-i18n-title="tool.today"></button>
-  <button id="btnDateSm" class="icon only-sm ghost" data-i18n-title="tool.today" aria-label="">📅</button>
-  <button id="btnHl" class="icon glyph-lg ghost" data-i18n-title="tool.highlight" aria-label="">▧</button>
-  <button id="btnCmt" class="icon ghost" data-i18n-title="tool.comment" aria-label="">✎</button>
+  <span class="grp">
+    <button id="btnUndo" class="icon glyph-lg" data-i18n-title="tool.undo" aria-label="">↶</button>
+    <button id="btnRedo" class="icon glyph-lg" data-i18n-title="tool.redo" aria-label="">↷</button>
+    <span class="sep"></span>
+    <button id="btnText" class="icon" data-i18n-title="tool.addText" aria-label="">T</button>
+    <button id="btnHl" class="icon glyph-lg ghost" data-i18n-title="tool.highlight" aria-label="">▧</button>
+    <button id="btnCmt" class="icon ghost" data-i18n-title="tool.comment" aria-label="">✎</button>
+  </span>
 </div>
 
 <main>
