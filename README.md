@@ -207,6 +207,19 @@ numéro **dessinés dans le contenu**, un `/Link` couvrant la zone et un second 
 tous deux vers la note en annexe, un `/Link` de retour depuis l'annexe, et une note `/Text`
 isolée dans la marge qui porte le texte pour les lecteurs sachant ouvrir une bulle.
 
+**Centrage et débordement.** La page est centrée par des marges automatiques sur l'élément,
+et non par `justify-content` / `align-items` sur le conteneur : un enfant centré par un
+conteneur flexible voit son débordement haut et gauche devenir inatteignable au défilement dès
+qu'il dépasse la zone visible, ce qui rendait le haut du document inaccessible une fois agrandi.
+
+**Numérotation des commentaires.** Le dernier numéro utilisé est inscrit dans les mots-clés du
+document (`pdfed-cmt-max:N`), lu à l'ouverture suivante. Le balayage des annotations reste en
+secours pour un fichier annoté par un autre outil.
+
+**Cadre du navigateur.** Sur iPhone, l'API plein écran ne s'applique qu'aux vidéos : seul un
+ajout à l'écran d'accueil supprime les barres du navigateur, y compris en paysage. Le bouton
+Plein écran des réglages fonctionne partout ailleurs et le signale poliment quand il ne peut rien.
+
 **Tracé et défilement.** `touch-action: pan-x pan-y` sur la visionneuse, nécessaire au
 pincement, a pour effet que le navigateur fait défiler la page pendant un glissement à un doigt
 dès que le document dépasse l'écran. Le rectangle de référence capturé au début du tracé devient

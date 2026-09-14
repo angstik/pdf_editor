@@ -19,6 +19,7 @@ const bind = (ids, fn)=> ids.forEach(id=>{ const el=$(id); if(el) el.onclick = f
 
 let toastT;
 let deferredPrompt = null;   // requête d'installation PWA, captée plus bas
+const APP_VERSION = 'v10';   // doit suivre CACHE_VERSION de sw.js
 function toast(msg, kind){
   const el=$('#toast'); el.textContent=msg;
   el.style.borderLeftColor = kind==='err'?'var(--stamp)':kind==='ok'?'var(--ok)':'var(--ink)';
@@ -142,7 +143,8 @@ function showSettingsModal(){
         ${flagSvg(LANG)}<span>${esc((LANGS.find(l=>l.code===LANG)||{}).label||LANG)}</span></button></div>
       <label class="f">${esc(t('insp.suffix'))}</label>
       <input type="text" id="setSuffix" value="${esc(SUFFIX())}" spellcheck="false">
-      <div class="row" style="margin-top:12px"><button id="setHelp">${esc(t('nav.help'))}</button></div>
+      <div class="row" style="margin-top:12px"><button id="setFs">${esc(t('nav.fullscreen'))}</button></div>
+      <div class="row" style="margin-top:6px"><button id="setHelp">${esc(t('nav.help'))}</button></div>
       <div class="row" style="margin-top:6px${deferredPrompt?'':';display:none'}">
         <button id="setInstall" class="primary">${esc(t('nav.install'))}</button></div>
     </div>
@@ -151,6 +153,7 @@ function showSettingsModal(){
   $('#setSuffix').onchange = e=>
     localStorage.setItem('pdfed.suffix', e.target.value.replace(/[\\/:*?"<>|]/g,''));
   $('#setLangBtn').onclick = showLangModal;
+  $('#setFs').onclick = toggleFullscreen;
   $('#setHelp').onclick = ()=>showSplash(false);
   $('#setInstall').onclick = doInstall;
 }
@@ -159,8 +162,7 @@ $('#btnLangP').onclick = showLangModal;
 
 /* appelée par i18n.js après chaque changement de langue */
 function onLangChange(){
-  $('#docName').textContent = Doc.name || t('nav.noDoc');
-  fitDocName();
+  setDocName(Doc.name);
   libRender();
   updateFlag();
   drawItems();
@@ -591,7 +593,7 @@ $('#btnVault').onclick = ()=>{
 const Doc = {
   bytes:null, name:'', pdf:null, page:1, total:0,
   scale:1, viewport:null, autoFit:true,
-  vp1:new Map(), rot:new Map(), text:new Map(), mode:null, cmtOffset:0,
+  vp1:new Map(), rot:new Map(), text:new Map(), mode:null, cmtOffset:0, dirty:false,
   items:[], sel:null, undo:[], redo:[], renderTask:null, rt:null
 };
 
@@ -599,8 +601,17 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('vendor/pdf.worker.min.js', doc
 
 bind(['#btnOpen','#btnOpenSm'], ()=> $('#filePdf').click());
 $('#filePdf').onchange = e=>{ if(e.target.files[0]) loadPdf(e.target.files[0]); e.target.value=''; };
-/* toute la zone vide ouvre le sélecteur, pas seulement le bouton */
+/* la zone vide et l'emplacement du nom, dans la barre du haut, ouvrent le
+   sélecteur : le bouton n'est pas la seule cible */
 $('#hint').onclick = ()=> $('#filePdf').click();
+$('#docName').onclick = ()=>{ if(!Doc.pdf) $('#filePdf').click(); };
+function setDocName(name){
+  const el = $('#docName');
+  el.textContent = name || t('nav.noDoc');
+  el.classList.toggle('empty', !name);
+  el.title = name || t('nav.open');
+  fitDocName();
+}
 
 const viewer = $('#viewer');
 ['dragenter','dragover'].forEach(ev=>viewer.addEventListener(ev,e=>{e.preventDefault();viewer.classList.add('dragover');}));
@@ -619,12 +630,13 @@ async function loadPdf(file){
     Doc.bytes = buf;
     Doc.pdf   = await pdfjsLib.getDocument({data: buf.slice(0), isEvalSupported:false}).promise;
     Object.assign(Doc, {name:file.name, total:Doc.pdf.numPages, page:1,
-                        items:[], sel:null, undo:[], redo:[], autoFit:true});
+                        items:[], sel:null, undo:[], redo:[], autoFit:true, dirty:false});
     Doc.vp1.clear(); Doc.rot.clear(); Doc.text.clear();
     setMode(null);
-    $('#docName').textContent = file.name;
+    setDocName(file.name);
     $('#btnClose').hidden = false;
     $('#pTot').textContent = '/ ' + Doc.total;
+    sizePageField();
     $('#hint').hidden = true; $('#stage').hidden = false;
     fitDocName();
     await fitPage();
@@ -636,7 +648,9 @@ async function loadPdf(file){
 $('#btnClose').onclick = closeDoc;
 function closeDoc(){
   if(!Doc.pdf) return;
-  if(!Doc.items.length) return doCloseDoc();
+  /* rien de posé, ou rien de changé depuis le dernier enregistrement :
+     il n'y a rien à perdre, on ferme sans rien demander */
+  if(!Doc.items.length || !Doc.dirty) return doCloseDoc();
   modal(`<h3>${esc(t('m.closeTitle'))}</h3><p>${esc(t('m.closeBody'))}</p>
     <div class="foot"><button data-close>${esc(t('m.cancel'))}</button>
       <button id="cdSave">${esc(t('nav.save'))}</button>
@@ -646,12 +660,13 @@ function closeDoc(){
 }
 function doCloseDoc(){
   Object.assign(Doc, {pdf:null, bytes:null, name:'', page:1, total:0,
-    items:[], sel:null, undo:[], redo:[], viewport:null, autoFit:true, cmtOffset:0});
+    items:[], sel:null, undo:[], redo:[], viewport:null, autoFit:true, cmtOffset:0, dirty:false});
   Doc.vp1.clear(); Doc.rot.clear(); Doc.text.clear();
   setMode(null);
   $('#stage').hidden = true; $('#hint').hidden = false; $('#btnClose').hidden = true;
-  $('#docName').textContent = t('nav.noDoc'); $('#docName').classList.remove('full');
+  setDocName(''); $('#docName').classList.remove('full');
   $('#pTot').textContent = '/ –'; $('#pNum').value = '–'; $('#zLbl').textContent = '100%';
+  Doc.total = 0; sizePageField();
   drawItems();
   toast(t('t.docClosed'));
 }
@@ -664,6 +679,14 @@ const MARKUP = ['Text','Square','Highlight','FreeText','StrikeOut','Underline','
 async function scanComments(){
   Doc.cmtOffset = 0;
   let found = 0, maxN = 0;
+  /* Source de vérité : le marqueur écrit dans les mots-clés du document par
+     un passage précédent. Le balayage des annotations reste en secours,
+     notamment pour un fichier annoté ailleurs. */
+  try{
+    const kw = (await Doc.pdf.getMetadata()).info.Keywords || '';
+    const m = /pdfed-cmt-max:(\d+)/.exec(String(kw));
+    if(m) maxN = Math.max(maxN, parseInt(m[1], 10));
+  }catch(err){ console.warn('metadata:', err.message); }
   try{
     for(let n = 1; n <= Doc.total; n++){
       const list = await (await Doc.pdf.getPage(n)).getAnnotations();
@@ -678,8 +701,17 @@ async function scanComments(){
     }
   }catch(err){ console.warn('annotations:', err.message); }
   Doc.cmtOffset = Math.max(maxN, found);
+  found = Math.max(found, maxN);
   if(found) toast(t('t.cmtFound', {n:found, next:Doc.cmtOffset + 1}));
   drawItems();
+}
+
+/* Le champ de page n'est jamais plus large que le plus grand numéro possible. */
+function sizePageField(){
+  const d = Math.max(1, String(Doc.total || 1).length);
+  const el = $('#pNum');
+  el.style.width = `calc(${d}ch + 6px)`;
+  el.maxLength = d;
 }
 
 async function getVp1(n){
@@ -828,7 +860,12 @@ function restore(json){
   const it = Doc.items.find(x=>x.id===Doc.sel);
   if(it && it.page!==Doc.page){ Doc.page=it.page; renderPage(); } else drawItems();
 }
-function snapshot(){ Doc.undo.push(snap()); if(Doc.undo.length>80) Doc.undo.shift(); Doc.redo.length=0; }
+function snapshot(){
+  Doc.undo.push(snap());
+  if(Doc.undo.length>80) Doc.undo.shift();
+  Doc.redo.length = 0;
+  Doc.dirty = true;          // sert à n'avertir qu'en cas de perte réelle
+}
 function undo(){
   if(!Doc.undo.length){ toast(t('t.nothingUndo')); return; }
   Doc.redo.push(snap()); restore(Doc.undo.pop()); toast(t('t.undone'));
@@ -1525,7 +1562,11 @@ async function exportPdf(){
       }
     }
     await buildComments(out, pages, getFont);
+    /* mémorise le dernier numéro pour que la prochaine ouverture enchaîne */
+    const lastN = Doc.cmtOffset + commentsInOrder().length;
+    if(lastN) try{ out.setKeywords(['pdfed-cmt-max:' + lastN]); }catch(err){ console.warn(err.message); }
     await saveBytes(await out.save(), exportName);
+    Doc.dirty = false;
     toast(t('t.pdfDone'),'ok');
   }catch(err){
     console.error(err);
@@ -1742,6 +1783,18 @@ function showSplash(firstRun){
 /* ---------------------------------------------------------------------
    11. PWA
    ------------------------------------------------------------------ */
+/* Sur iPhone, l'API plein écran n'existe pas pour autre chose qu'une vidéo :
+   seul un ajout à l'écran d'accueil supprime le cadre du navigateur. */
+async function toggleFullscreen(){
+  const el = document.documentElement;
+  try{
+    if(document.fullscreenElement){ await document.exitFullscreen(); return; }
+    if(el.requestFullscreen){ await el.requestFullscreen({navigationUI:'hide'}); closeModal(); return; }
+    if(el.webkitRequestFullscreen){ el.webkitRequestFullscreen(); closeModal(); return; }
+    toast(t('t.fsNo'));
+  }catch(err){ toast(t('t.fsNo')); }
+}
+
 async function doInstall(){
   if(!deferredPrompt) return;
   deferredPrompt.prompt();
@@ -1776,7 +1829,7 @@ if('launchQueue' in window){
 /* ---------------------------------------------------------------------
    12. Démarrage
    ------------------------------------------------------------------ */
-addEventListener('beforeunload', e=>{ if(Doc.items.length){ e.preventDefault(); e.returnValue=''; } });
+addEventListener('beforeunload', e=>{ if(Doc.items.length && Doc.dirty){ e.preventDefault(); e.returnValue=''; } });
 addEventListener('resize', ()=>{
   if(!isSmall()){ $$('aside').forEach(a=>a.classList.remove('open')); $('#scrim').classList.remove('on'); }
   if(!Doc.pdf) return;
@@ -1787,7 +1840,8 @@ addEventListener('resize', ()=>{
 
 applyI18n();
 updateFlag();
-$('#docName').textContent = t('nav.noDoc');
+$('#appVer').textContent = APP_VERSION;
+setDocName('');
 drawItems();
 
 (async function boot(){

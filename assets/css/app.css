@@ -113,8 +113,10 @@ header{padding-top:max(8px,env(safe-area-inset-top))}
 .brand{display:flex;align-items:center;gap:8px;font-weight:700;letter-spacing:.4px;font-size:14px;flex:0 0 auto}
 .brand svg{color:var(--ink);flex:0 0 auto}
 .sep{width:1px;height:24px;background:var(--line);flex:0 0 auto}
-.docname{color:var(--muted);flex:0 1 auto;min-width:0;overflow:hidden;
-  text-overflow:ellipsis;white-space:nowrap}
+.docname{color:var(--muted);flex:1 1 auto;min-width:0;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;align-self:stretch;display:flex;align-items:center}
+.docname.empty{cursor:pointer}
+.docname.empty:hover{color:var(--ink)}
 .docname.full{flex:1 0 100%;order:20;max-width:none;overflow:visible;white-space:normal;
   word-break:break-all;line-height:1.35;padding-top:2px;font-size:12px}
 .spacer{flex:1 1 auto;min-width:2px}
@@ -144,7 +146,8 @@ aside{background:var(--panel);display:flex;flex-direction:column;min-height:0}
 aside.left{border-right:1px solid var(--line)}
 aside.right{border-left:1px solid var(--line)}
 .pane-head{display:flex;align-items:center;gap:4px;padding:10px 12px;border-bottom:1px solid var(--line)}
-.pane-head h2{font-size:12px;margin:0;font-weight:600;flex:1;min-width:0}
+.pane-head h2{font-size:12px;margin:0;font-weight:600;flex:0 0 auto;min-width:0}
+.ver{font-family:var(--mono);font-size:10px;color:var(--muted);flex:0 0 auto}
 .pane-body{overflow:auto;padding:10px 12px;flex:1;-webkit-overflow-scrolling:touch}
 .pane-foot{border-top:1px solid var(--line);padding:8px 12px;display:flex;gap:6px;
   padding-bottom:max(8px,env(safe-area-inset-bottom))}
@@ -165,10 +168,15 @@ aside.right{border-left:1px solid var(--line)}
 .stack{display:flex;flex-direction:column;gap:8px}
 
 /* ---------- visionneuse ---------- */
-.viewer{background:var(--stage);overflow:auto;position:relative;display:flex;justify-content:center;
+.viewer{background:var(--stage);overflow:auto;position:relative;display:flex;
   touch-action:pan-x pan-y;
-  align-items:flex-start;padding:20px;-webkit-overflow-scrolling:touch;min-width:0}
-.stage{position:relative;height:max-content;box-shadow:var(--shadow);background:#fff;flex:0 0 auto}
+  justify-content:flex-start;align-items:flex-start;padding:20px;
+  -webkit-overflow-scrolling:touch;min-width:0}
+/* Le centrage passe par des marges automatiques et non par justify/align-center :
+   un élément centré par le conteneur flexible voit son débordement haut et gauche
+   devenir inatteignable au défilement dès que le document est agrandi. */
+.stage{position:relative;height:max-content;box-shadow:var(--shadow);background:#fff;
+  flex:0 0 auto;margin:auto}
 .stage canvas{display:block}
 .layer{position:absolute;inset:0;overflow:hidden}
 .item{position:absolute;transform-origin:50% 50%;cursor:move;touch-action:none}
@@ -293,7 +301,7 @@ button.rel.has .dot{display:block}
     transform:translateX(-102%);transition:transform .22s ease;padding-top:env(safe-area-inset-top)}
   aside.right{right:0;transform:translateX(102%)}
   aside.open{transform:none}
-  .viewer{padding:8px;align-items:center}
+  .viewer{padding:8px}
   .list{max-height:38vh}
   .modal{padding:14px}
   /* cibles tactiles plus généreuses sur les poignées */

@@ -12,6 +12,8 @@ const I18N = {
 /* ------------------------------------------------------------------ FR */
 fr:{
 locale:'fr-FR',
+'nav.fullscreen':"Plein écran",
+'t.fsNo':"Ce navigateur ne le permet pas. Installez l'application pour un affichage sans cadre.",
 'm.fileName':"Nom du fichier",
 'insp.suffix':"Suffixe ajouté au nom",
 't.cmtFound':"Commentaires déjà présents : {n} — la numérotation reprend à {next}",
@@ -142,6 +144,8 @@ locale:'fr-FR',
 /* ------------------------------------------------------------------ EN */
 en:{
 locale:'en-GB',
+'nav.fullscreen':"Full screen",
+'t.fsNo':"This browser doesn't allow it. Install the app for a frameless display.",
 'm.fileName':"File name",
 'insp.suffix':"Suffix added to the name",
 't.cmtFound':"Comments already present: {n} — numbering resumes at {next}",
@@ -272,6 +276,8 @@ locale:'en-GB',
 /* ------------------------------------------------------------------ DE */
 de:{
 locale:'de-DE',
+'nav.fullscreen':"Vollbild",
+'t.fsNo':"Dieser Browser erlaubt das nicht. Installieren Sie die App für eine rahmenlose Anzeige.",
 'm.fileName':"Dateiname",
 'insp.suffix':"An den Namen angehängtes Suffix",
 't.cmtFound':"Bereits vorhandene Kommentare: {n} — Nummerierung läuft ab {next} weiter",
@@ -403,6 +409,8 @@ locale:'de-DE',
 /* ------------------------------------------------------------------ ES */
 es:{
 locale:'es-ES',
+'nav.fullscreen':"Pantalla completa",
+'t.fsNo':"Este navegador no lo permite. Instale la aplicación para una vista sin marco.",
 'm.fileName':"Nombre del archivo",
 'insp.suffix':"Sufijo añadido al nombre",
 't.cmtFound':"Comentarios ya presentes: {n} — la numeración continúa en {next}",
@@ -533,6 +541,8 @@ locale:'es-ES',
 /* ------------------------------------------------------------------ IT */
 it:{
 locale:'it-IT',
+'nav.fullscreen':"Schermo intero",
+'t.fsNo':"Questo browser non lo consente. Installa l'applicazione per una vista senza cornice.",
 'm.fileName':"Nome del file",
 'insp.suffix':"Suffisso aggiunto al nome",
 't.cmtFound':"Commenti già presenti: {n} — la numerazione riprende da {next}",
@@ -663,6 +673,8 @@ locale:'it-IT',
 /* ------------------------------------------------------------------ UK */
 uk:{
 locale:'uk-UA',
+'nav.fullscreen':"На весь екран",
+'t.fsNo':"Цей браузер цього не дозволяє. Встановіть застосунок для показу без рамки.",
 'm.fileName':"Назва файлу",
 'insp.suffix':"Суфікс, що додається до назви",
 't.cmtFound':"Уже наявних коментарів: {n} — нумерація продовжиться з {next}",
@@ -793,6 +805,8 @@ locale:'uk-UA',
 /* ------------------------------------------------------------------ CS */
 cs:{
 locale:'cs-CZ',
+'nav.fullscreen':"Celá obrazovka",
+'t.fsNo':"Tento prohlížeč to neumožňuje. Nainstalujte aplikaci pro zobrazení bez rámečku.",
 'm.fileName':"Název souboru",
 'insp.suffix':"Přípona přidávaná k názvu",
 't.cmtFound':"Již přítomné komentáře: {n} — číslování pokračuje od {next}",
