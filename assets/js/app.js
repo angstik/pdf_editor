@@ -19,7 +19,7 @@ const bind = (ids, fn)=> ids.forEach(id=>{ const el=$(id); if(el) el.onclick = f
 
 let toastT;
 let deferredPrompt = null;   // requête d'installation PWA, captée plus bas
-const APP_VERSION = 'v10';   // doit suivre CACHE_VERSION de sw.js
+const APP_VERSION = 'v11';   // doit suivre CACHE_VERSION de sw.js
 function toast(msg, kind){
   const el=$('#toast'); el.textContent=msg;
   el.style.borderLeftColor = kind==='err'?'var(--stamp)':kind==='ok'?'var(--ok)':'var(--ink)';
@@ -141,6 +141,7 @@ function showSettingsModal(){
       <label class="f">${esc(t('nav.language'))}</label>
       <div class="row"><button id="setLangBtn" style="justify-content:flex-start;gap:8px">
         ${flagSvg(LANG)}<span>${esc((LANGS.find(l=>l.code===LANG)||{}).label||LANG)}</span></button></div>
+      <label class="f"><input type="checkbox" id="setNote" ${NOTE_ON()?'checked':''}>${esc(t('insp.marginNote'))}</label>
       <label class="f">${esc(t('insp.suffix'))}</label>
       <input type="text" id="setSuffix" value="${esc(SUFFIX())}" spellcheck="false">
       <div class="row" style="margin-top:12px"><button id="setFs">${esc(t('nav.fullscreen'))}</button></div>
@@ -150,6 +151,7 @@ function showSettingsModal(){
     </div>
     <div class="foot"><button class="primary" data-close>${esc(t('m.close'))}</button></div>`);
   $$('#themeSeg button').forEach(b=> b.onclick = ()=>applyTheme(b.dataset.t));
+  $('#setNote').onchange = e=> localStorage.setItem('pdfed.note', e.target.checked ? '1' : '0');
   $('#setSuffix').onchange = e=>
     localStorage.setItem('pdfed.suffix', e.target.value.replace(/[\\/:*?"<>|]/g,''));
   $('#setLangBtn').onclick = showLangModal;
@@ -600,7 +602,60 @@ const Doc = {
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('vendor/pdf.worker.min.js', document.baseURI).href;
 
 bind(['#btnOpen','#btnOpenSm'], ()=> $('#filePdf').click());
-$('#filePdf').onchange = e=>{ if(e.target.files[0]) loadPdf(e.target.files[0]); e.target.value=''; };
+$('#filePdf').onchange = e=>{ openFiles([...e.target.files]); e.target.value=''; };
+
+/* Le sélecteur accepte un PDF ou des images, ce qui déclenche sur mobile le
+   menu natif habituel : photothèque, appareil photo, fichiers.
+   Des images sont assemblées en un PDF A4, une par page. */
+const A4 = {w:595.28, h:841.89};
+async function openFiles(files){
+  if(!files.length) return;
+  const pdf = files.find(f => /pdf$/i.test(f.type) || /\.pdf$/i.test(f.name));
+  if(pdf) return loadPdf(pdf);
+  const imgs = files.filter(f => /^image\//.test(f.type) || /\.(png|jpe?g|webp|gif|bmp|heic|heif)$/i.test(f.name));
+  if(!imgs.length){ toast(t('t.noImages'),'err'); return; }
+  await pdfFromImages(imgs);
+}
+async function pdfFromImages(files){
+  toast(t('t.building'));
+  try{
+    const doc = await PDFLib.PDFDocument.create();
+    let n = 0;
+    for(const f of files){
+      const img = await fileToImage(f);
+      /* passage par un canevas : uniformise les formats exotiques (HEIC converti
+         par le système, WebP, etc.) et borne la définition */
+      const k = Math.min(1, 2600 / Math.max(img.naturalWidth, img.naturalHeight));
+      const cv = document.createElement('canvas');
+      cv.width  = Math.max(1, Math.round(img.naturalWidth  * k));
+      cv.height = Math.max(1, Math.round(img.naturalHeight * k));
+      const ctx = cv.getContext('2d');
+      ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height);
+      ctx.drawImage(img, 0, 0, cv.width, cv.height);
+      const bytes = await canvasToBytes(cv, 'image/jpeg', .9);
+      const emb = await doc.embedJpg(bytes);
+      /* facteur d'échelle commun aux deux axes : l'image occupe la largeur ou
+         la hauteur, selon celle qui sature la première. Aucune rotation,
+         aucun recadrage, proportions conservées. */
+      const page = doc.addPage([A4.w, A4.h]);
+      const s = Math.min(A4.w / emb.width, A4.h / emb.height);
+      page.drawImage(emb, {
+        x: (A4.w - emb.width  * s) / 2,
+        y: (A4.h - emb.height * s) / 2,
+        width:  emb.width  * s,
+        height: emb.height * s
+      });
+      n++;
+    }
+    const out = await doc.save();
+    const base = (files[0].name || 'images').replace(/\.[^.]+$/, '');
+    await loadPdf(new File([out], base + '.pdf', {type:'application/pdf'}));
+    toast(t('t.pagesBuilt', {n}), 'ok');
+  }catch(err){
+    console.error(err);
+    toast(t('t.genFail', {e: err.message}), 'err');
+  }
+}
 /* la zone vide et l'emplacement du nom, dans la barre du haut, ouvrent le
    sélecteur : le bouton n'est pas la seule cible */
 $('#hint').onclick = ()=> $('#filePdf').click();
@@ -617,11 +672,15 @@ const viewer = $('#viewer');
 ['dragenter','dragover'].forEach(ev=>viewer.addEventListener(ev,e=>{e.preventDefault();viewer.classList.add('dragover');}));
 ['dragleave','drop'].forEach(ev=>viewer.addEventListener(ev,e=>{e.preventDefault();viewer.classList.remove('dragover');}));
 viewer.addEventListener('drop', e=>{
-  const files=[...(e.dataTransfer?.files||[])];
-  const pdf = files.find(f=>/pdf$/i.test(f.type)||/\.pdf$/i.test(f.name));
+  const files = [...(e.dataTransfer?.files || [])];
+  if(!files.length) return;
+  const pdf = files.find(f => /pdf$/i.test(f.type) || /\.pdf$/i.test(f.name));
   if(pdf) return loadPdf(pdf);
-  const imgs = files.filter(f=>/^image\//.test(f.type));
-  if(imgs.length) importFiles(imgs);
+  /* sur un document ouvert, des images déposées rejoignent la bibliothèque ;
+     sinon elles deviennent un nouveau document */
+  const imgs = files.filter(f => /^image\//.test(f.type));
+  if(!imgs.length) return;
+  Doc.pdf ? importFiles(imgs) : pdfFromImages(imgs);
 });
 
 async function loadPdf(file){
@@ -692,7 +751,9 @@ async function scanComments(){
       const list = await (await Doc.pdf.getPage(n)).getAnnotations();
       for(const a of list || []){
         if(!MARKUP.includes(a.subtype)) continue;
-        const txt = typeof a.contents === 'string' ? a.contents : (a.contents && a.contents.str) || '';
+        /* pdf.js 3.x expose le texte sous contentsObj.str ; contents a disparu */
+        const txt = (a.contentsObj && a.contentsObj.str) ||
+                    (typeof a.contents === 'string' ? a.contents : '') || '';
         if(!txt.trim()) continue;
         found++;
         const m = /^\s*(\d+)\s*[.)]/.exec(txt);
@@ -1598,8 +1659,10 @@ function wrapPdf(txt, font, size, maxW){
   }
   return out;
 }
+const NOTE_ON = ()=> localStorage.getItem('pdfed.note') !== '0';
 async function buildComments(out, pages, getFont){
   const list = commentsInOrder();
+  const noteOn = NOTE_ON();
   if(!list.length) return;
   const { PDFName, PDFString, PDFArray, PDFNumber, degrees, rgb } = PDFLib;
   const ctx  = out.context;
@@ -1704,10 +1767,11 @@ async function buildComments(out, pages, getFont){
       Rect: ctx.obj([badge.x-11, badge.y-11, badge.x+11, badge.y+11]),
       Border: ctx.obj([0,0,0]), A: goTo(d.annex.ref, d.top)
     })));
-    /* note autocollante dans la marge, sous la pastille : elle porte le texte
-       pour les lecteurs qui savent ouvrir une bulle, sans recouvrir aucun lien */
-    /* sur un cadre bas, la note remonte pour ne pas déborder sous le texte */
-    const note = corner(-it.w/2 - 17, Math.max(-it.h/2 + 10, it.h/2 - 38));
+    /* Note autocollante dans la marge, toujours 28 points sous la pastille.
+       L'ancien calage sur la hauteur du cadre faisait coïncider les deux centres
+       dès que le cadre était bas : l'icône du lecteur recouvrait alors le numéro. */
+    if(noteOn){
+    const note = corner(-it.w/2 - 17, it.h/2 - 38);
     const popRef = ctx.nextRef(), noteRef = ctx.nextRef();
     ctx.assign(noteRef, ctx.obj({
       Type:'Annot', Subtype:'Text', F:4, Name:'Comment',
@@ -1722,6 +1786,7 @@ async function buildComments(out, pages, getFont){
     ctx.assign(popRef, ctx.obj({ Type:'Annot', Subtype:'Popup', Parent:noteRef, Open:false,
       Rect: ctx.obj([Math.max(20, ll.x), Math.max(20, ll.y-110), Math.max(260, ll.x+240), Math.max(120, ll.y-8)]) }));
     A.push(noteRef); A.push(popRef);
+    }
     /* retour : depuis le bouton de l'annexe vers le passage */
     annotsOf(d.annex).push(ctx.register(ctx.obj({
       Type:'Annot', Subtype:'Link', F:4, Rect: ctx.obj(d.btn),

@@ -214,7 +214,13 @@ qu'il dépasse la zone visible, ce qui rendait le haut du document inaccessible 
 
 **Numérotation des commentaires.** Le dernier numéro utilisé est inscrit dans les mots-clés du
 document (`pdfed-cmt-max:N`), lu à l'ouverture suivante. Le balayage des annotations reste en
-secours pour un fichier annoté par un autre outil.
+secours pour un fichier annoté par un autre outil ; il lit `contentsObj.str`, la propriété
+qu'expose pdf.js 3.x — `contents` a disparu de son interface et le balayage ne trouvait rien.
+
+**Images vers PDF.** Le sélecteur accepte indifféremment un PDF ou des images, ce qui déclenche
+sur mobile le menu natif habituel : photothèque, appareil photo, fichiers. Des images choisies
+sont assemblées en un document A4, une par page, à l'échelle `min(largeur/l, hauteur/h)` : l'image
+sature l'axe qui contraint le premier, sans rotation, sans recadrage et sans déformation.
 
 **Cadre du navigateur.** Sur iPhone, l'API plein écran ne s'applique qu'aux vidéos : seul un
 ajout à l'écran d'accueil supprime les barres du navigateur, y compris en paysage. Le bouton

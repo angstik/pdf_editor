@@ -12,6 +12,10 @@ const I18N = {
 /* ------------------------------------------------------------------ FR */
 fr:{
 locale:'fr-FR',
+'insp.marginNote':"Note en marge à l'export",
+'t.building':"Assemblage des images…",
+'t.pagesBuilt':"Pages créées : {n}",
+'nav.openAny':"Ouvrir un PDF ou des images",
 'nav.fullscreen':"Plein écran",
 't.fsNo':"Ce navigateur ne le permet pas. Installez l'application pour un affichage sans cadre.",
 'm.fileName':"Nom du fichier",
@@ -144,6 +148,10 @@ locale:'fr-FR',
 /* ------------------------------------------------------------------ EN */
 en:{
 locale:'en-GB',
+'insp.marginNote':"Margin note on export",
+'t.building':"Assembling the images…",
+'t.pagesBuilt':"Pages created: {n}",
+'nav.openAny':"Open a PDF or images",
 'nav.fullscreen':"Full screen",
 't.fsNo':"This browser doesn't allow it. Install the app for a frameless display.",
 'm.fileName':"File name",
@@ -276,6 +284,10 @@ locale:'en-GB',
 /* ------------------------------------------------------------------ DE */
 de:{
 locale:'de-DE',
+'insp.marginNote':"Randnotiz beim Export",
+'t.building':"Bilder werden zusammengefügt…",
+'t.pagesBuilt':"Erstellte Seiten: {n}",
+'nav.openAny':"PDF oder Bilder öffnen",
 'nav.fullscreen':"Vollbild",
 't.fsNo':"Dieser Browser erlaubt das nicht. Installieren Sie die App für eine rahmenlose Anzeige.",
 'm.fileName':"Dateiname",
@@ -409,6 +421,10 @@ locale:'de-DE',
 /* ------------------------------------------------------------------ ES */
 es:{
 locale:'es-ES',
+'insp.marginNote':"Nota al margen al exportar",
+'t.building':"Ensamblando las imágenes…",
+'t.pagesBuilt':"Páginas creadas: {n}",
+'nav.openAny':"Abrir un PDF o imágenes",
 'nav.fullscreen':"Pantalla completa",
 't.fsNo':"Este navegador no lo permite. Instale la aplicación para una vista sin marco.",
 'm.fileName':"Nombre del archivo",
@@ -541,6 +557,10 @@ locale:'es-ES',
 /* ------------------------------------------------------------------ IT */
 it:{
 locale:'it-IT',
+'insp.marginNote':"Nota a margine all'esportazione",
+'t.building':"Assemblaggio delle immagini…",
+'t.pagesBuilt':"Pagine create: {n}",
+'nav.openAny':"Apri un PDF o delle immagini",
 'nav.fullscreen':"Schermo intero",
 't.fsNo':"Questo browser non lo consente. Installa l'applicazione per una vista senza cornice.",
 'm.fileName':"Nome del file",
@@ -673,6 +693,10 @@ locale:'it-IT',
 /* ------------------------------------------------------------------ UK */
 uk:{
 locale:'uk-UA',
+'insp.marginNote':"Нотатка на полях при експорті",
+'t.building':"Складання зображень…",
+'t.pagesBuilt':"Створено сторінок: {n}",
+'nav.openAny':"Відкрити PDF або зображення",
 'nav.fullscreen':"На весь екран",
 't.fsNo':"Цей браузер цього не дозволяє. Встановіть застосунок для показу без рамки.",
 'm.fileName':"Назва файлу",
@@ -805,6 +829,10 @@ locale:'uk-UA',
 /* ------------------------------------------------------------------ CS */
 cs:{
 locale:'cs-CZ',
+'insp.marginNote':"Poznámka na okraji při exportu",
+'t.building':"Skládání obrázků…",
+'t.pagesBuilt':"Vytvořené stránky: {n}",
+'nav.openAny':"Otevřít PDF nebo obrázky",
 'nav.fullscreen':"Celá obrazovka",
 't.fsNo':"Tento prohlížeč to neumožňuje. Nainstalujte aplikaci pro zobrazení bez rámečku.",
 'm.fileName':"Název souboru",
