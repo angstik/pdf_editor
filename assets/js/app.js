@@ -19,17 +19,24 @@ const bind = (ids, fn)=> ids.forEach(id=>{ const el=$(id); if(el) el.onclick = f
 
 let toastT;
 let deferredPrompt = null;   // requête d'installation PWA, captée plus bas
-const APP_VERSION = 'v14';
+const APP_VERSION = 'v15';
 /* Position de la barre d'outils : en haut, ou en colonne à gauche ou à droite. */
 const TB_POS = ['top','left','right'];
 const tbPos = ()=> TB_POS.includes(localStorage.getItem('pdfed.tb')) ? localStorage.getItem('pdfed.tb') : 'top';
+const isLandscape = ()=> matchMedia('(orientation: landscape)').matches;
+/* La colonne latérale n'a de sens qu'en paysage : en portrait elle mange une
+   largeur déjà rare, et la préférence est simplement mise en sommeil. */
+function syncToolbar(){
+  const pos = tbPos(), side = pos !== 'top' && isLandscape();
+  document.body.classList.toggle('tb-side',  side);
+  document.body.classList.toggle('tb-left',  side && pos === 'left');
+  document.body.classList.toggle('tb-right', side && pos === 'right');
+}
 function applyToolbar(pos){
   if(!TB_POS.includes(pos)) pos = 'top';
   localStorage.setItem('pdfed.tb', pos);
-  document.body.classList.toggle('tb-side',  pos !== 'top');
-  document.body.classList.toggle('tb-left',  pos === 'left');
-  document.body.classList.toggle('tb-right', pos === 'right');
-  if(Doc.pdf && Doc.autoFit) setTimeout(fitPage, 60);
+  syncToolbar();
+  if(Doc.pdf && Doc.autoFit) setTimeout(fitPage, 80);
 }   // doit suivre CACHE_VERSION de sw.js
 function toast(msg, kind){
   const el=$('#toast'); el.textContent=msg;
@@ -78,6 +85,26 @@ function swatchHtml(id, color, disabled, kind='text'){
         class="${c.toLowerCase()===color.toLowerCase()?'on':''}" ${disabled?'disabled':''}
         aria-label="${c}"></button>`).join('')}</div>`;
 }
+/* Empêche les contrôles annexes de dérober le focus de la zone de saisie.
+   Les boutons gardent leur clic ; seul le transfert de focus est annulé, et
+   la sélection est restaurée pour les cases à cocher, qui l'exigent. */
+function keepCaret(field, selectors){
+  if(!field) return;
+  const restore = ()=>{
+    const a = field.selectionStart, b = field.selectionEnd;
+    setTimeout(()=>{ field.focus(); try{ field.setSelectionRange(a, b); }catch(e){} }, 0);
+  };
+  for(const sel of selectors){
+    $$(sel, $('#modal')).forEach(el=>{
+      el.addEventListener('pointerdown', ev=>{
+        if(el.tagName === 'BUTTON'){ ev.preventDefault(); }   // le clic suit malgré tout
+        else restore();
+      });
+      el.addEventListener('click', restore);
+    });
+  }
+}
+
 function bindSwatch(id, onChange, kind='text'){
   const input = $('#'+id); if(!input) return;
   const label = input.closest('.swatch');
@@ -238,6 +265,7 @@ function showSettingsModal(){
       <label class="f"><input type="checkbox" id="setNote" ${NOTE_ON()?'checked':''}>${esc(t('insp.marginNote'))}</label>
       <label class="f"><input type="checkbox" id="setAnnex1" ${ANNEX_1ST()?'checked':''}>${esc(t('insp.annexFirst'))}</label>
       <label class="f"><input type="checkbox" id="setShot" ${SHOT_ON()?'checked':''}>${esc(t('insp.shot'))}</label>
+      <label class="f"><input type="checkbox" id="setClip" ${CLIP_ON()?'checked':''}>${esc(t('insp.clip'))}</label>
       <label class="f">${esc(t('insp.shotMax'))}</label>
       <div class="row"><input type="number" id="setShotMax" min="5" max="100" step="5" value="${SHOT_MAX()}">
         <button id="setShotHelp" style="flex:0 0 44px">?</button></div>
@@ -254,6 +282,7 @@ function showSettingsModal(){
   $('#setNote').onchange   = e=> localStorage.setItem('pdfed.note', e.target.checked ? '1' : '0');
   $('#setAnnex1').onchange = e=> localStorage.setItem('pdfed.annexFirst', e.target.checked ? '1' : '0');
   $('#setShot').onchange   = e=> localStorage.setItem('pdfed.shot', e.target.checked ? '1' : '0');
+  $('#setClip').onchange   = e=> localStorage.setItem('pdfed.clip', e.target.checked ? '1' : '0');
   $('#setShotMax').onchange = e=> localStorage.setItem('pdfed.shotMax',
     String(clamp(parseInt(e.target.value,10) || 25, 5, 100)));
   $('#setShotHelp').onclick = showShotHelp;
@@ -276,10 +305,11 @@ function onLangChange(){
   if(Doc.pdf) $('#pTot').textContent = '/ ' + Doc.total;
 }
 /* Un nom de fichier trop long ne doit pas être tronqué : il passe sur sa propre ligne. */
+/* Le nom est tronqué par la feuille de style ; on ne lui fait plus occuper de
+   seconde ligne, mais l'infobulle donne toujours le nom entier. */
 function fitDocName(){
   const el = $('#docName');
   el.classList.remove('full');
-  if(el.scrollWidth > el.clientWidth + 1) el.classList.add('full');
 }
 
 /* ---------------------------------------------------------------------
@@ -823,20 +853,32 @@ $('#filePdf').onchange = e=>{ openFiles([...e.target.files]); e.target.value='';
    menu natif habituel : photothèque, appareil photo, fichiers.
    Des images sont assemblées en un PDF A4, une par page. */
 const A4 = {w:595.28, h:841.89};
+const isPdf = f => /pdf$/i.test(f.type) || /\.pdf$/i.test(f.name);
+const isImg = f => /^image\//.test(f.type) || /\.(png|jpe?g|webp|gif|bmp|heic|heif)$/i.test(f.name);
 async function openFiles(files){
   if(!files.length) return;
-  const pdf = files.find(f => /pdf$/i.test(f.type) || /\.pdf$/i.test(f.name));
-  if(pdf) return loadPdf(pdf);
-  const imgs = files.filter(f => /^image\//.test(f.type) || /\.(png|jpe?g|webp|gif|bmp|heic|heif)$/i.test(f.name));
-  if(!imgs.length){ toast(t('t.noImages'),'err'); return; }
-  await pdfFromImages(imgs);
+  const keep = files.filter(f => isPdf(f) || isImg(f));
+  if(!keep.length){ toast(t('t.noImages'),'err'); return; }
+  /* Un PDF seul est chargé tel quel : le recopier page à page ferait perdre
+     ce que nous ne savons pas transporter. Au-delà, on assemble. */
+  if(keep.length === 1 && isPdf(keep[0])) return loadPdf(keep[0]);
+  await assemble(keep);
 }
-async function pdfFromImages(files){
+/* Assemble la sélection dans l'ordre choisi : les PDF sont concaténés, les
+   images deviennent chacune une page A4. */
+async function assemble(files){
   toast(t('t.building'));
   try{
     const doc = await PDFLib.PDFDocument.create();
-    let n = 0;
+    let n = 0, pdfs = 0;
     for(const f of files){
+      if(isPdf(f)){
+        const src = await PDFLib.PDFDocument.load(await f.arrayBuffer(), {ignoreEncryption:true});
+        const copied = await doc.copyPages(src, src.getPageIndices());
+        copied.forEach(p => { doc.addPage(p); n++; });
+        pdfs++;
+        continue;
+      }
       const img = await fileToImage(f);
       /* passage par un canevas : uniformise les formats exotiques (HEIC converti
          par le système, WebP, etc.) et borne la définition */
@@ -863,9 +905,9 @@ async function pdfFromImages(files){
       n++;
     }
     const out = await doc.save();
-    const base = (files[0].name || 'images').replace(/\.[^.]+$/, '');
+    const base = (files[0].name || 'document').replace(/\.[^.]+$/, '');
     await loadPdf(new File([out], base + '.pdf', {type:'application/pdf'}));
-    toast(t('t.pagesBuilt', {n}), 'ok');
+    toast(pdfs > 1 ? t('t.merged', {n:pdfs}) : t('t.pagesBuilt', {n}), 'ok');
   }catch(err){
     console.error(err);
     toast(t('t.genFail', {e: err.message}), 'err');
@@ -895,7 +937,7 @@ viewer.addEventListener('drop', e=>{
      sinon elles deviennent un nouveau document */
   const imgs = files.filter(f => /^image\//.test(f.type));
   if(!imgs.length) return;
-  Doc.pdf ? importFiles(imgs) : pdfFromImages(imgs);
+  Doc.pdf ? importFiles(imgs) : assemble(imgs);
 });
 
 async function loadPdf(file){
@@ -1073,6 +1115,9 @@ function goPage(n){
 }
 $('#pPrev').onclick = ()=>goPage(Doc.page-1);
 $('#pNext').onclick = ()=>goPage(Doc.page+1);
+/* double-clic : première ou dernière page */
+$('#pPrev').ondblclick = e=>{ e.preventDefault(); goPage(1); };
+$('#pNext').ondblclick = e=>{ e.preventDefault(); goPage(Doc.total); };
 $('#pNum').onchange = e=>{ const v=parseInt(e.target.value,10); v?goPage(v):(e.target.value=Doc.page); };
 $('#zIn').onclick   = ()=>{ if(Doc.pdf) setScale(Doc.scale*1.2); };
 $('#zOut').onclick  = ()=>{ if(Doc.pdf) setScale(Doc.scale/1.2); };
@@ -1137,13 +1182,36 @@ viewer.addEventListener('pointermove', e=>{
   pinch0.k = k;
   stage.style.transform = `scale(${k})`;
 });
-['pointerup','pointercancel'].forEach(ev=>viewer.addEventListener(ev, e=>{
+['pointerup','pointercancel'].forEach(ev=>viewer.addEventListener(ev, async e=>{
   touches.delete(e.pointerId);
   if(touches.size >= 2 || !pinch0) return;
   const stage = $('#stage'), k = pinch0.k || 1, base = pinch0.s;
+  const {ox, oy} = pinch0;
   pinch0 = null;
+  if(Math.abs(k - 1) <= 0.005){
+    stage.style.transform = ''; stage.style.willChange = '';
+    return;
+  }
+  /* Le point pincé doit rester sous les doigts après le rendu définitif.
+     On note sa position dans la page, en unités de contenu, puis on replace
+     le défilement pour qu'il retombe au même endroit de l'écran. Le retrait
+     de la transformation et le nouveau rendu se font dans la même image,
+     sinon l'œil voit la page sauter. */
+  const rBefore = stage.getBoundingClientRect(), rView = viewer.getBoundingClientRect();
+  const screenX = rBefore.left + ox * k - rView.left;   // où se trouve le point à l'écran
+  const screenY = rBefore.top  + oy * k - rView.top;
+  const contentX = ox / base, contentY = oy / base;     // le même point, en unités page
+  const next = clamp(base * k, .05, 6);
+  Doc.scale = next; Doc.autoFit = false;
+  $('#zLbl').textContent = Math.round(next*100) + '%';
+  clearTimeout(Doc.rt);
+  await renderPage();
   stage.style.transform = ''; stage.style.willChange = '';
-  if(Math.abs(k - 1) > 0.005) setScale(base * k);
+  const r2 = stage.getBoundingClientRect();
+  const originX = r2.left - rView.left + viewer.scrollLeft;   // origine de la page dans le défilement
+  const originY = r2.top  - rView.top  + viewer.scrollTop;
+  viewer.scrollLeft = originX + contentX * next - screenX;
+  viewer.scrollTop  = originY + contentY * next - screenY;
 }));
 function scheduleRender(){ clearTimeout(Doc.rt); Doc.rt=setTimeout(renderPage,60); }
 
@@ -1554,6 +1622,7 @@ function addComment(r){
   const it = {id:uid(), page:Doc.page, type:'comment',
     x:r.x, y:r.y, w:Math.max(20,r.w), h:Math.max(14,r.h), rot:0,
     color: localStorage.getItem('pdfed.cmt.color') || CMT_COLOR,
+    shot: SHOT_ON(),                 // coche initialisée par le réglage général
     author: localStorage.getItem('pdfed.author') || '',
     text:'', opacity:1, locked:false};
   editComment(it, true);
@@ -1599,8 +1668,11 @@ function editComment(it, isNew){
     <input type="text" id="cAuth" value="${esc(it.author||'')}" autocomplete="name">
     <label class="f">${esc(t('insp.commentText'))}</label>
     <textarea id="cTxt" rows="5" placeholder="${esc(t('m.commentPh'))}">${esc(it.text||'')}</textarea>
-    <label class="f">${esc(t('insp.color'))}</label>
-    ${swatchHtml('cCol', it.color, false, 'cmt')}
+    <label class="f"><input type="checkbox" id="cShot" ${it.shot ? 'checked' : ''}>${esc(t('insp.shotHere'))}</label>
+    <div class="compact">
+      <label class="f">${esc(t('insp.color'))}</label>
+      ${swatchHtml('cCol', it.color, false, 'cmt')}
+    </div>
     <div class="foot"><button id="cCancel">${esc(t('m.cancel'))}</button>
       <button class="primary" id="cOk">${esc(t('m.ok'))}</button></div>`);
   /* Annuler est une décision explicite : le brouillon est abandonné. */
@@ -1608,8 +1680,12 @@ function editComment(it, isNew){
     settled = true; if(isNew){ draftClear(); setMode(null); }
     closeModal();
   };
-  let color = it.color;
+  let color = it.color, shot = !!it.shot;
   bindSwatch('cCol', v=>{ color = v; }, 'cmt');
+  /* Choisir une couleur ou cocher la reproduction ne doit pas sortir le curseur
+     du texte : le focus et la sélection sont rendus tels quels. */
+  keepCaret($('#cTxt'), ['#cCol-p button', '#cShot', '.swatch']);
+  $('#cShot').onchange = e=>{ shot = e.target.checked; };
   $('#cTxt').focus();
   $('#cOk').onclick = ()=>{
     const txt = $('#cTxt').value.trim();
@@ -1620,6 +1696,7 @@ function editComment(it, isNew){
     it.text = txt;
     it.author = $('#cAuth').value.trim();
     it.color = color;
+    it.shot = shot;
     localStorage.setItem('pdfed.author', it.author);
     localStorage.setItem('pdfed.cmt.color', color);
     if(isNew){ Doc.items.push(it); Doc.sel = it.id; setMode(null); }
@@ -1692,6 +1769,7 @@ function renderInspector(){
     <textarea id="fTxt" rows="4" ${dis}>${esc(it.text||'')}</textarea>
     <label class="f">${esc(t('insp.author'))}</label>
     <input type="text" id="fAuth" value="${esc(it.author||'')}" ${dis}>
+    <label class="f"><input type="checkbox" id="fShot" ${it.shot?'checked':''} ${dis}>${esc(t('insp.shotHere'))}</label>
     <label class="f">${esc(t('insp.color'))}</label>
     ${swatchHtml('fCol', it.color, it.locked, 'cmt')}
     <div class="row" style="margin-top:8px">
@@ -1775,6 +1853,7 @@ function renderInspector(){
       const el=$(`.item[data-id="${it.id}"]`); if(el) el.style.setProperty('--cc', v);
       if(done){ localStorage.setItem('pdfed.cmt.color', v); drawItems(); }
     }, 'cmt');
+    $('#fShot').onchange = e=>upd(()=>{ it.shot = e.target.checked; });
     $('#fTxt').onchange  = e=>upd(()=>{ it.text=e.target.value; });
     $('#fAuth').onchange = e=>upd(()=>{ it.author=e.target.value.trim();
                                         localStorage.setItem('pdfed.author', it.author); });
@@ -1963,11 +2042,53 @@ async function exportPdf(){
     await saveBytes(await out.save(), exportName);
     Doc.dirty = false;
     toast(t('t.pdfDone'),'ok');
+    if(CLIP_ON()) await clipComments();
   }catch(err){
     console.error(err);
     toast(err.message==='locked' ? t('t.lockedExport') : t('t.genFail',{e:err.message}), 'err');
   }finally{ btns.forEach((b,i)=>{ b.disabled=false; b.innerHTML=prev[i]; }); }
 }
+/* Récapitulatif des commentaires dans le presse-papiers, en texte et en HTML.
+   Les vignettes y sont intégrées en data: URI ; certaines applications de
+   destination les conservent, d'autres ne gardent que le texte. */
+async function clipComments(){
+  const list = commentsInOrder();
+  if(!list.length) return;
+  const n = i => Doc.cmtOffset + i + 1;
+  const plain = list.map((it,i)=>
+    `${n(i)}. ${t('exp.page')} ${it.page}${it.author ? ' · ' + it.author : ''}\n${it.text || ''}`
+  ).join('\n\n');
+  let html = `<div style="font-family:sans-serif"><h3>${esc(t('exp.annexTitle'))} — ${esc(Doc.name)}</h3>`;
+  const maxH = 842 * SHOT_MAX() / 100;
+  for(let i = 0; i < list.length; i++){
+    const it = list[i];
+    html += `<p style="margin:14px 0 4px"><b style="color:${esc(it.color)}">${n(i)}.</b> `
+         +  `${esc(t('exp.page'))} ${it.page}${it.author ? ' · ' + esc(it.author) : ''}</p>`;
+    if((it.shot === undefined ? SHOT_ON() : it.shot) && Doc.pdf){
+      try{
+        const sh = await shotOf(it, maxH);
+        html += `<div><img alt="" style="border:1px solid ${esc(it.color)};max-width:100%" src="data:image/png;base64,${b64(sh.bytes)}"></div>`;
+      }catch(err){ console.warn('vignette:', err.message); }
+    }
+    html += `<div style="white-space:pre-wrap">${esc(it.text || '')}</div>`;
+  }
+  html += '</div>';
+  try{
+    if(navigator.clipboard && window.ClipboardItem){
+      await navigator.clipboard.write([new ClipboardItem({
+        'text/plain': new Blob([plain], {type:'text/plain'}),
+        'text/html':  new Blob([html],  {type:'text/html'})
+      })]);
+    } else {
+      await navigator.clipboard.writeText(plain);
+    }
+    toast(t('t.clipDone'),'ok');
+  }catch(err){
+    console.warn('presse-papiers:', err.message);
+    toast(t('t.clipFail'),'err');
+  }
+}
+
 /* ---------------------------------------------------------------------
    Commentaires à l'export.
 
@@ -2033,6 +2154,7 @@ function wrapPdf(txt, font, size, maxW){
   return out;
 }
 const NOTE_ON   = ()=> localStorage.getItem('pdfed.note') !== '0';
+const CLIP_ON   = ()=> localStorage.getItem('pdfed.clip') === '1';
 const ANNEX_1ST = ()=> localStorage.getItem('pdfed.annexFirst') === '1';
 const SHOT_ON   = ()=> localStorage.getItem('pdfed.shot') === '1';
 const SHOT_MAX  = ()=> clamp(parseInt(localStorage.getItem('pdfed.shotMax') || '25', 10) || 25, 5, 100);
@@ -2068,9 +2190,13 @@ async function buildComments(out, pages, getFont){
   };
   /* Option : l'annexe ouvre le document au lieu de le clore. Les pages insérées
      le sont dans l'ordre, juste après celles déjà placées lors de cet export. */
-  let inserted = 0;
+  /* En tête de document, chaque nouvelle page d'annexe s'insère juste après la
+     précédente : un simple compteur suffisait tant qu'il n'y en avait qu'une,
+     il fallait une position absolue dès qu'une seconde apparaît. */
+  const annexFirst = ANNEX_1ST();
+  let insertAt = 0;
   const newAnnex = ()=>{
-    const p = ANNEX_1ST() ? out.insertPage(inserted++, [W,H]) : out.addPage([W,H]);
+    const p = annexFirst ? out.insertPage(insertAt++, [W,H]) : out.addPage([W,H]);
     p.node.set(K_ANNEX, PDFNumber.of(1));
     header(p);
     return p;
@@ -2085,15 +2211,21 @@ async function buildComments(out, pages, getFont){
       break;                       // seule la dernière annexe nous intéresse
     }
   }
-  if(!annex){ annex = newAnnex(); y = H - 104; }
+  if(annex){
+    /* on reprend une annexe existante : les débordements iront juste après */
+    const idx = out.getPages().indexOf(annex);
+    if(idx >= 0) insertAt = idx + 1;
+  } else { annex = newAnnex(); y = H - 104; }
   const dests = [];
 
   const num = i => Doc.cmtOffset + i + 1;
   /* Copie du passage : rendue avant la mise en page, pour connaître sa hauteur. */
   const shots = [];
-  if(SHOT_ON() && Doc.pdf){
+  if(Doc.pdf){
     const maxH = H * SHOT_MAX() / 100;
     for(const it of list){
+      /* la coche de l'élément prime ; à défaut, le réglage général */
+      if(!(it.shot === undefined ? SHOT_ON() : it.shot)){ shots.push(null); continue; }
       try{
         const sh = await shotOf(it, maxH);
         const sc = Math.min(1, TW / sh.w);       // jamais plus large que la colonne
@@ -2116,7 +2248,7 @@ async function buildComments(out, pages, getFont){
       y -= sh.h;
       annex.drawImage(sh.img, {x:MA+28, y:y, width:sh.w, height:sh.h});
       annex.drawRectangle({x:MA+28, y:y, width:sh.w, height:sh.h,
-        borderWidth:.6, borderColor:rgb(.72,.74,.8)});
+        borderWidth:1, borderColor:c});      // même couleur que le cadre d'origine
       y -= 12;
     }
     lines.forEach(l=>{ annex.drawText(l, {x:MA+28, y:y, size:10, font:reg, color:rgb(.12,.13,.2)}); y -= 14; });
@@ -2211,7 +2343,8 @@ async function saveFile(blob, filename){
   }
   const file = new File([blob], filename, {type:mime});
   if(navigator.canShare && navigator.canShare({files:[file]})){
-    try{ await navigator.share({files:[file], title:filename}); return; }
+    /* pas de titre : iOS en ferait un second élément partagé, un fichier texte */
+    try{ await navigator.share({files:[file]}); return; }
     catch(e){ if(e.name==='AbortError') return; }
   }
   const url = URL.createObjectURL(blob), a = document.createElement('a');
@@ -2258,7 +2391,8 @@ function showShotHelp(){
 function showSplash(firstRun){
   const step = (n,a,b)=>`<div class="step"><span class="n">${n}</span>
     <div><b>${esc(t(a))}</b><span>${esc(t(b))}</span></div></div>`;
-  modal(`<h3>${esc(t('sp.title'))}</h3><p>${esc(t('sp.intro'))}</p>
+  modal(`<h3>${esc(t('sp.title'))} <span class="ver">${esc(APP_VERSION)}</span></h3>
+    <p>${esc(t('sp.intro'))}</p>
     <div class="steps">
       ${step(1,'sp.s1','sp.s1b')}${step(2,'sp.s2','sp.s2b')}
       ${step(3,'sp.s3','sp.s3b')}${step(4,'sp.s4','sp.s4b')}
@@ -2333,6 +2467,7 @@ if('launchQueue' in window){
    ------------------------------------------------------------------ */
 addEventListener('beforeunload', e=>{ if(Doc.items.length && Doc.dirty){ e.preventDefault(); e.returnValue=''; } });
 addEventListener('resize', ()=>{
+  syncToolbar();
   if(!isSmall()){ $$('aside').forEach(a=>a.classList.remove('open')); $('#scrim').classList.remove('on'); }
   if(!Doc.pdf) return;
   fitDocName();
@@ -2341,7 +2476,7 @@ addEventListener('resize', ()=>{
 });
 
 applyI18n();
-applyToolbar(tbPos());
+syncToolbar();
 updateFlag();
 $('#appVer').textContent = APP_VERSION;
 setDocName('');

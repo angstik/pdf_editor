@@ -87,7 +87,16 @@ Installable sur ordinateur et sur mobile (Android / iOS), utilisable hors ligne.
   change de page ; sinon il faut avoir atteint le bord et pousser encore. Le geste est suivi
   jusqu'au relâchement du doigt, de sorte que l'inertie du défilement ne fait jamais tourner la
   page. Au clavier, les flèches parcourent le document tant qu'aucun élément n'est sélectionné.
-- **Barre d'outils en haut, à gauche ou à droite**, au choix.
+- **Barre d'outils en haut, à gauche ou à droite**, au choix. La colonne latérale ne s'active
+  qu'en paysage : en portrait elle prendrait une largeur déjà rare, et la préférence est
+  simplement mise en sommeil jusqu'à la rotation suivante.
+- **Assemblage de la sélection** : plusieurs PDF sont concaténés dans l'ordre choisi, les images
+  deviennent des pages A4, et une sélection mixte se comporte comme on l'attend. Un PDF seul est
+  chargé tel quel, sans recopie page à page qui lui ferait perdre ce que nous ne savons pas
+  transporter.
+- **Double-clic sur les chevrons** : première ou dernière page.
+- **Récapitulatif dans le presse-papiers** à l'enregistrement, en option : texte et HTML, avec
+  les vignettes intégrées en `data:` URI.
 - **Annexe des commentaires en tête ou en fin de document**, au choix.
 - **Copie du passage dans l'annexe** : chaque note peut reprendre en image la zone encadrée, à
   sa taille d'origine, redressée si le cadre est pivoté, tronquée par le bas au-delà d'une
@@ -221,6 +230,13 @@ réinterprétés à chaque fois. Chaque commentaire produit donc un cadre, une t
 numéro **dessinés dans le contenu**, un `/Link` couvrant la zone et un second sur la pastille,
 tous deux vers la note en annexe, un `/Link` de retour depuis l'annexe, et une note `/Text`
 isolée dans la marge qui porte le texte pour les lecteurs sachant ouvrir une bulle.
+
+**Partage sur iOS.** `navigator.share({files, title})` produit deux éléments sur iOS : le fichier
+et un second document texte reprenant le titre. Seul `files` est transmis.
+
+**Zone d'accueil.** `.drophint` porte `display:flex`, qui l'emporte sur la règle `[hidden]` du
+navigateur : la zone restait cliquable par-dessus le document chargé et rouvrait le sélecteur de
+fichiers. Une règle `.drophint[hidden]{display:none}` explicite rétablit le comportement attendu.
 
 **Centrage et débordement.** La page est centrée par des marges automatiques sur l'élément,
 et non par `justify-content` / `align-items` sur le conteneur : un enfant centré par un
