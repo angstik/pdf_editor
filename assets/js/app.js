@@ -19,7 +19,7 @@ const bind = (ids, fn)=> ids.forEach(id=>{ const el=$(id); if(el) el.onclick = f
 
 let toastT;
 let deferredPrompt = null;   // requête d'installation PWA, captée plus bas
-const APP_VERSION = 'v12';   // doit suivre CACHE_VERSION de sw.js
+const APP_VERSION = 'v13';   // doit suivre CACHE_VERSION de sw.js
 function toast(msg, kind){
   const el=$('#toast'); el.textContent=msg;
   el.style.borderLeftColor = kind==='err'?'var(--stamp)':kind==='ok'?'var(--ok)':'var(--ink)';
@@ -81,6 +81,65 @@ function bindSwatch(id, onChange, kind='text'){
     input.value = b.dataset.c; paint(b.dataset.c);
     pushRecent(kind, b.dataset.c); onChange(b.dataset.c, true);
   });
+}
+
+/* ---------------------------------------------------------------------
+   0 bis. Champ de mot de passe : affichage commutable et jauge de robustesse
+   ------------------------------------------------------------------ */
+const PW_COLORS = ['#d95757','#e08a3c','#d4b13c','#5ba85f','#2e9e5b'];
+/* Estimation volontairement simple et lisible : longueur, variété des classes
+   de caractères, et rabattement des suites et répétitions évidentes. */
+function pwScore(pw){
+  if(!pw) return -1;
+  const len = pw.length;
+  if(len < 6) return 0;
+  const cls = [/[a-z]/, /[A-Z]/, /[0-9]/, /[^A-Za-z0-9]/].filter(r => r.test(pw)).length;
+  let sc = (len >= 8) + (len >= 12) + (len >= 16);
+  if(cls >= 3) sc++;
+  if(cls >= 4) sc++;
+  /* la longueur ne rachète pas l'absence de variété */
+  if(cls === 1) sc = Math.min(sc, 1);
+  else if(cls === 2) sc = Math.min(sc, 3);
+  if(/^(.)\1+$/.test(pw)) sc = 0;
+  if(/^(0123|1234|abcd|azer|qwer|motdepasse|password|secret|admin)/i.test(pw)) sc = Math.min(sc, 1);
+  if(len < 8) sc = Math.min(sc, 1);
+  return clamp(sc, 0, 4);
+}
+function pwFieldHtml(id, labelKey, meter, autocomplete){
+  return `<label class="f">${esc(t(labelKey))}</label>
+    <div class="pw">
+      <input type="password" id="${id}" autocomplete="${autocomplete||'new-password'}"
+             autocapitalize="off" autocorrect="off" spellcheck="false">
+      <button type="button" class="eye" id="${id}-eye" title="${esc(t('m.pwShow'))}"
+              aria-label="${esc(t('m.pwShow'))}">👁</button>
+    </div>
+    ${meter ? `<div class="meter" id="${id}-m">${'<i></i>'.repeat(5)}</div>
+      <span class="meter-lbl" id="${id}-l"></span>` : ''}`;
+}
+function bindPw(id, onInput){
+  const inp = $('#'+id), eye = $('#'+id+'-eye');
+  eye.onclick = ()=>{
+    const show = inp.type === 'password';
+    inp.type = show ? 'text' : 'password';
+    eye.textContent = show ? '🙈' : '👁';
+    const lbl = t(show ? 'm.pwHide' : 'm.pwShow');
+    eye.title = lbl; eye.setAttribute('aria-label', lbl);
+    inp.focus();
+  };
+  const bars = $$('#'+id+'-m i'), lbl = $('#'+id+'-l');
+  const paint = ()=>{
+    if(!bars.length) return;
+    const sc = pwScore(inp.value);
+    bars.forEach((b,i)=>{
+      b.style.background = (sc >= 0 && i <= sc) ? PW_COLORS[sc] : '';
+      b.style.borderColor = (sc >= 0 && i <= sc) ? 'transparent' : '';
+    });
+    lbl.textContent = sc < 0 ? '' : t('insp.strength') + ' : ' + t('pw.'+sc);
+    lbl.style.color = sc < 0 ? '' : PW_COLORS[sc];
+  };
+  inp.oninput = ()=>{ paint(); if(onInput) onInput(inp.value); };
+  paint();
+  return inp;
 }
 
 /* ---------------------------------------------------------------------
@@ -405,6 +464,113 @@ async function downloadAsset(a){
   el.click();
 }
 
+/* --- enregistrement et chargement de la bibliothèque ------------------
+   Le fichier produit est autonome et chiffré : il ne dépend ni du coffre
+   local ni de l'appareil. Le mot de passe est obligatoire et n'est stocké
+   nulle part. --------------------------------------------------------- */
+const LIB_MAGIC = 'PDFED-LIB-1', LIB_ITER = 250000;
+const b64  = u => btoa(String.fromCharCode(...new Uint8Array(u)));
+const ub64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+
+async function libSerialize(pass){
+  const items = [];
+  for(const a of await dbGetAll('assets')){
+    items.push({name:a.name, mime:a.mime, w:a.w, h:a.h, created:a.created,
+                data: b64(await Vault.unpack(a))});
+  }
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv   = crypto.getRandomValues(new Uint8Array(12));
+  const key  = await Vault.derive(pass, salt);
+  const clear = new TextEncoder().encode(JSON.stringify({magic:LIB_MAGIC, items}));
+  const data = await crypto.subtle.encrypt({name:'AES-GCM', iv}, key, clear);
+  return {text: JSON.stringify({
+    magic: LIB_MAGIC, v: 1,
+    kdf: {name:'PBKDF2', hash:'SHA-256', iterations: LIB_ITER},
+    salt: b64(salt), iv: b64(iv), data: b64(data)
+  }), n: items.length};
+}
+async function libDeserialize(text, pass){
+  let env;
+  try{ env = JSON.parse(text); }catch(e){ throw new Error('format'); }
+  if(!env || env.magic !== LIB_MAGIC) throw new Error('format');
+  const key = await Vault.derive(pass, ub64(env.salt));
+  const clear = await crypto.subtle.decrypt(
+    {name:'AES-GCM', iv: ub64(env.iv)}, key, ub64(env.data));   // lève si mot de passe faux
+  const payload = JSON.parse(new TextDecoder().decode(clear));
+  if(!payload || payload.magic !== LIB_MAGIC || !Array.isArray(payload.items)) throw new Error('format');
+  return payload.items;
+}
+
+$('#btnLibIO').onclick = ()=>{
+  modal(`<h3>${esc(t('m.libTitle'))}</h3>
+    <div class="stack">
+      <button class="primary" id="ioSave">${esc(t('m.libSave'))}</button>
+      <button id="ioLoad">${esc(t('m.libLoad'))}</button>
+    </div>
+    <div class="foot"><button data-close>${esc(t('m.close'))}</button></div>`);
+  $('#ioSave').onclick = libSaveDialog;
+  $('#ioLoad').onclick = ()=>{ closeModal(); $('#fileLib').click(); };
+};
+
+function libSaveDialog(){
+  if(Vault.locked){ toast(t('t.unlockFirst'),'err'); return; }
+  if(!Lib.assets.length){ toast(t('t.libEmpty')); return; }
+  modal(`<h3>${esc(t('m.libSave'))}</h3><p>${esc(t('m.libSaveBody'))}</p>
+    ${pwFieldHtml('lpw1','m.vaultPwd',true)}
+    ${pwFieldHtml('lpw2','m.vaultPwd2',false)}
+    <div class="foot"><button data-close>${esc(t('m.cancel'))}</button>
+      <button class="primary" id="ioOk">${esc(t('nav.saveShort'))}</button></div>`);
+  bindPw('lpw1'); bindPw('lpw2');
+  $('#ioOk').onclick = async ()=>{
+    const a = $('#lpw1').value, b = $('#lpw2').value;
+    if(a.length < 8) return toast(t('t.min8'),'err');
+    if(a !== b)      return toast(t('t.mismatch'),'err');
+    $('#ioOk').disabled = true;
+    try{
+      const {text, n} = await libSerialize(a);
+      closeModal();
+      const stamp = new Date().toISOString().slice(0,10);
+      await saveFile(new Blob([text], {type:'application/json'}), `signatures-${stamp}.pdfedlib`);
+      toast(t('t.libSaved',{n}),'ok');
+    }catch(err){
+      console.error(err);
+      toast(t('t.genFail',{e:err.message}),'err');
+      const btn = $('#ioOk'); if(btn) btn.disabled = false;
+    }
+  };
+}
+
+$('#fileLib').onchange = async e=>{
+  const f = e.target.files[0]; e.target.value = '';
+  if(!f) return;
+  let text;
+  try{ text = await f.text(); }catch(err){ return toast(t('t.readFail',{e:err.message}),'err'); }
+  modal(`<h3>${esc(t('m.libLoad'))}</h3><p>${esc(t('m.libLoadBody'))}</p>
+    <div class="chip" style="margin-bottom:6px">${esc(f.name)}</div>
+    ${pwFieldHtml('lpw','m.vaultPwd',false,'current-password')}
+    <div class="foot"><button data-close>${esc(t('m.cancel'))}</button>
+      <button class="primary" id="ioIn">${esc(t('lib.import'))}</button></div>`);
+  const inp = bindPw('lpw');
+  const go = async ()=>{
+    if(Vault.locked){ toast(t('t.unlockFirst'),'err'); return; }
+    $('#ioIn').disabled = true;
+    try{
+      const items = await libDeserialize(text, inp.value);
+      for(const it of items){
+        await addAsset(it.name || '?', ub64(it.data), it.mime || 'image/png',
+                       it.w || 1, it.h || 1);
+      }
+      closeModal();
+      toast(t('t.imagesAdded',{n:items.length}),'ok');
+    }catch(err){
+      toast(err.message === 'format' ? t('t.libBadFile') : t('t.wrongPassword'),'err');
+      const btn = $('#ioIn'); if(btn) btn.disabled = false;
+    }
+  };
+  $('#ioIn').onclick = go;
+  inp.onkeydown = ev=>{ if(ev.key === 'Enter') go(); };
+};
+
 /* --- effacement total, confirmé dans les deux cas -------------------- */
 $('#btnWipe').onclick = wipeLibrary;
 async function wipeLibrary(){
@@ -557,10 +723,11 @@ $('#btnDraw').onclick = ()=>{
 $('#btnVault').onclick = ()=>{
   if(!Vault.enabled){
     modal(`<h3>${esc(t('m.vaultTitle'))}</h3><p>${esc(t('m.vaultBody'))}</p>
-      <label class="f">${esc(t('m.vaultPwd'))}</label><input type="password" id="v1" autocomplete="new-password">
-      <label class="f">${esc(t('m.vaultPwd2'))}</label><input type="password" id="v2" autocomplete="new-password">
+      ${pwFieldHtml('v1','m.vaultPwd',true)}
+      ${pwFieldHtml('v2','m.vaultPwd2',false)}
       <div class="foot"><button data-close>${esc(t('m.cancel'))}</button>
         <button class="primary" id="vok">${esc(t('m.vaultEnable'))}</button></div>`);
+    bindPw('v1'); bindPw('v2');
     $('#vok').onclick = async ()=>{
       const a=$('#v1').value, b=$('#v2').value;
       if(a.length<6) return toast(t('t.min6'),'err');
@@ -1796,22 +1963,27 @@ async function buildComments(out, pages, getFont){
   });
 }
 
-async function saveBytes(bytes, filename){
-  const blob = new Blob([bytes], {type:'application/pdf'});
+const saveBytes = (bytes, filename)=>
+  saveFile(new Blob([bytes], {type:'application/pdf'}), filename);
+
+/* Sélecteur natif quand il existe, partage sur mobile, téléchargement sinon. */
+async function saveFile(blob, filename){
+  const mime = blob.type || 'application/octet-stream';
+  const ext  = '.' + (filename.split('.').pop() || 'bin');
   if(window.showSaveFilePicker){
     try{
       const h = await showSaveFilePicker({suggestedName:filename,
-        types:[{description:'PDF', accept:{'application/pdf':['.pdf']}}]});
+        types:[{description:ext.slice(1).toUpperCase(), accept:{[mime]:[ext]}}]});
       const w = await h.createWritable(); await w.write(blob); await w.close(); return;
     }catch(e){ if(e.name==='AbortError') return; }
   }
-  const file = new File([blob], filename, {type:'application/pdf'});
+  const file = new File([blob], filename, {type:mime});
   if(navigator.canShare && navigator.canShare({files:[file]})){
     try{ await navigator.share({files:[file], title:filename}); return; }
     catch(e){ if(e.name==='AbortError') return; }
   }
-  const url=URL.createObjectURL(blob), a=document.createElement('a');
-  a.href=url; a.download=filename; a.click();
+  const url = URL.createObjectURL(blob), a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
   setTimeout(()=>URL.revokeObjectURL(url), 5000);
 }
 

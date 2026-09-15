@@ -17,6 +17,10 @@ Installable sur ordinateur et sur mobile (Android / iOS), utilisable hors ligne.
 - Détourage du fond pour les signatures scannées (seuil de clarté, alpha progressif,
   option « encre en noir »).
 - Renommer, dupliquer via le document, télécharger, supprimer.
+- **Enregistrement et chargement de la bibliothèque** dans un fichier `.pdfedlib` autonome,
+  chiffré par un mot de passe obligatoire d'au moins huit caractères. Le champ de saisie propose
+  une bascule d'affichage et une jauge de robustesse qui se met à jour à la frappe. Le fichier ne
+  dépend ni du coffre local ni de l'appareil : il transporte la bibliothèque d'un poste à l'autre.
 - **Effacement total de la bibliothèque**, avec une confirmation adaptée à l'état du coffre :
   simple quand le contenu est visible, saisie explicite de `EFFACER` quand il est verrouillé
   (puisqu'on supprime alors des données qu'on ne peut pas vérifier).
@@ -255,6 +259,18 @@ sous les menus du navigateur dès que celles-ci réapparaissent.
 **Gestionnaires en ligne.** La politique de sécurité interdit `script-src 'unsafe-inline'` :
 tout attribut `onclick` du balisage est donc silencieusement ignoré. Les boutons de fermeture
 des fenêtres portent un attribut `data-close` et sont câblés par délégation depuis JavaScript.
+
+**Format du fichier de bibliothèque.** Une enveloppe JSON portant un identifiant `PDFED-LIB-1`,
+les paramètres de dérivation, le sel, le vecteur d'initialisation et les données chiffrées en
+base64. Le contenu clair est lui-même un JSON contenant les images en base64 avec leur nom et
+leurs dimensions. Le déchiffrement échoue de lui-même sur un mauvais mot de passe — l'étiquette
+d'authentification d'AES-GCM y pourvoit — et l'identifiant est vérifié avant et après
+déchiffrement, ce qui distingue un fichier étranger d'un mot de passe erroné.
+
+**Robustesse du mot de passe.** L'estimation combine longueur et variété des classes de
+caractères, plafonne les chaînes d'une seule classe, annule les répétitions pures et rabat les
+débuts de suites connues. Elle est indicative et volontairement lisible : ce n'est pas un
+estimateur d'entropie.
 
 **Polices.** Montserrat et Roboto sont livrées sous forme d'instances statiques (poids 400 et 700,
 romain et italique) extraites des polices variables du dépôt `google/fonts` avec

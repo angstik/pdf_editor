@@ -260,6 +260,17 @@ button.rel.has .dot{display:block}
 .seg{display:flex;gap:5px}
 .seg button{flex:1;font-size:12px;padding:6px 4px}
 
+/* champ de mot de passe : bascule d'affichage et jauge de robustesse */
+.pw{position:relative}
+.pw input{padding-right:40px}
+.pw .eye{position:absolute;right:3px;top:50%;transform:translateY(-50%);width:32px;height:28px;
+  min-height:28px;border:0;background:transparent;padding:0;color:var(--muted);font-size:15px}
+.pw .eye:hover{color:var(--text);border:0}
+.meter{display:flex;gap:4px;margin-top:7px}
+.meter i{flex:1;height:6px;border-radius:4px;background:var(--panel-2);
+  border:1px solid var(--line);transition:background .15s}
+.meter-lbl{display:block;font-size:11px;color:var(--muted);margin-top:5px;min-height:14px}
+
 /* ---------- modales ---------- */
 .mask{position:fixed;inset:0;background:rgba(6,7,12,.72);display:none;align-items:center;
   justify-content:center;z-index:60;padding:14px}

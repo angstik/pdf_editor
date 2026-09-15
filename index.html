@@ -64,6 +64,7 @@
   <aside class="left" id="paneLib">
     <div class="pane-head">
       <h2 data-i18n="nav.library"></h2>
+      <button id="btnLibIO" class="icon ghost" data-i18n-title="nav.libIO" aria-label="">⇅</button>
       <button id="btnWipe" class="icon ghost" data-i18n-title="lib.wipe" aria-label="">🧹</button>
       <button id="btnVault" class="icon ghost" data-i18n-title="lib.protect" aria-label="">🔒</button>
       <button id="closeLib" class="icon ghost only-sm" data-i18n-title="nav.close" aria-label="">✕</button>
@@ -111,6 +112,7 @@
 
 <input type="file" id="filePdf" accept="application/pdf,.pdf,image/*" multiple hidden>
 <input type="file" id="fileImg" accept="image/*" multiple hidden>
+<input type="file" id="fileLib" accept=".pdfedlib,.json,application/json" hidden>
 
 <script src="vendor/pdf.min.js"></script>
 <script src="vendor/pdf-lib.min.js"></script>
