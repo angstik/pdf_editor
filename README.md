@@ -83,6 +83,17 @@ Installable sur ordinateur et sur mobile (Android / iOS), utilisable hors ligne.
   suite sur cette même page, et une page n'est ouverte que si la place vient à manquer.
 - **Nom du fichier proposé** avant l'enregistrement, avec un suffixe paramétrable dans les
   réglages.
+- **Navigation par balayage et par molette** : quand la page tient à l'écran, un simple geste
+  change de page ; sinon il faut avoir atteint le bord et pousser encore. Le geste est suivi
+  jusqu'au relâchement du doigt, de sorte que l'inertie du défilement ne fait jamais tourner la
+  page. Au clavier, les flèches parcourent le document tant qu'aucun élément n'est sélectionné.
+- **Barre d'outils en haut, à gauche ou à droite**, au choix.
+- **Annexe des commentaires en tête ou en fin de document**, au choix.
+- **Copie du passage dans l'annexe** : chaque note peut reprendre en image la zone encadrée, à
+  sa taille d'origine, redressée si le cadre est pivoté, tronquée par le bas au-delà d'une
+  hauteur réglable. Un écran d'aide montre le rendu avec et sans copie.
+- **Brouillon de commentaire** conservé si la fenêtre de saisie est fermée par un clic à côté,
+  et restitué à la saisie suivante. Valider et Annuler l'effacent tous deux.
 - Disposition adaptative : sur mobile, la bibliothèque et l'inspecteur deviennent des tiroirs,
   la barre d'outils se replie sur des icônes et ne défile jamais horizontalement.
 - PWA : installable, hors ligne, gestionnaire de fichiers `.pdf` sur les navigateurs

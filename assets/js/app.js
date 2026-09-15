@@ -19,7 +19,18 @@ const bind = (ids, fn)=> ids.forEach(id=>{ const el=$(id); if(el) el.onclick = f
 
 let toastT;
 let deferredPrompt = null;   // requête d'installation PWA, captée plus bas
-const APP_VERSION = 'v13';   // doit suivre CACHE_VERSION de sw.js
+const APP_VERSION = 'v14';
+/* Position de la barre d'outils : en haut, ou en colonne à gauche ou à droite. */
+const TB_POS = ['top','left','right'];
+const tbPos = ()=> TB_POS.includes(localStorage.getItem('pdfed.tb')) ? localStorage.getItem('pdfed.tb') : 'top';
+function applyToolbar(pos){
+  if(!TB_POS.includes(pos)) pos = 'top';
+  localStorage.setItem('pdfed.tb', pos);
+  document.body.classList.toggle('tb-side',  pos !== 'top');
+  document.body.classList.toggle('tb-left',  pos === 'left');
+  document.body.classList.toggle('tb-right', pos === 'right');
+  if(Doc.pdf && Doc.autoFit) setTimeout(fitPage, 60);
+}   // doit suivre CACHE_VERSION de sw.js
 function toast(msg, kind){
   const el=$('#toast'); el.textContent=msg;
   el.style.borderLeftColor = kind==='err'?'var(--stamp)':kind==='ok'?'var(--ok)':'var(--ink)';
@@ -116,6 +127,26 @@ function pwFieldHtml(id, labelKey, meter, autocomplete){
     ${meter ? `<div class="meter" id="${id}-m">${'<i></i>'.repeat(5)}</div>
       <span class="meter-lbl" id="${id}-l"></span>` : ''}`;
 }
+/* Le second champ signale en rouge, dès la frappe, toute divergence. */
+function bindPwMatch(id, refId){
+  const a = $('#'+refId), b = $('#'+id);
+  let err = $('#'+id+'-err');
+  if(!err){
+    err = document.createElement('span');
+    err.className = 'pw-err'; err.id = id+'-err';
+    b.closest('.pw').after(err);
+  }
+  const check = ()=>{
+    /* rouge dès que la confirmation dévie, mais pas pendant qu'on la tape :
+       une saisie encore incomplète mais conforme reste neutre */
+    const bad = b.value.length > 0 && b.value !== a.value.slice(0, b.value.length);
+    b.classList.toggle('bad', bad);
+    err.textContent = bad ? t('t.mismatch') : '';
+  };
+  b.addEventListener('input', check);
+  a.addEventListener('input', check);
+  return check;
+}
 function bindPw(id, onInput){
   const inp = $('#'+id), eye = $('#'+id+'-eye');
   eye.onclick = ()=>{
@@ -200,7 +231,16 @@ function showSettingsModal(){
       <label class="f">${esc(t('nav.language'))}</label>
       <div class="row"><button id="setLangBtn" style="justify-content:flex-start;gap:8px">
         ${flagSvg(LANG)}<span>${esc((LANGS.find(l=>l.code===LANG)||{}).label||LANG)}</span></button></div>
+      <label class="f">${esc(t('insp.toolbarPos'))}</label>
+      <div class="seg" id="tbSeg">
+        ${TB_POS.map(p=>`<button data-p="${p}" class="${p===tbPos()?'on':''}">${esc(t('pos.'+p))}</button>`).join('')}
+      </div>
       <label class="f"><input type="checkbox" id="setNote" ${NOTE_ON()?'checked':''}>${esc(t('insp.marginNote'))}</label>
+      <label class="f"><input type="checkbox" id="setAnnex1" ${ANNEX_1ST()?'checked':''}>${esc(t('insp.annexFirst'))}</label>
+      <label class="f"><input type="checkbox" id="setShot" ${SHOT_ON()?'checked':''}>${esc(t('insp.shot'))}</label>
+      <label class="f">${esc(t('insp.shotMax'))}</label>
+      <div class="row"><input type="number" id="setShotMax" min="5" max="100" step="5" value="${SHOT_MAX()}">
+        <button id="setShotHelp" style="flex:0 0 44px">?</button></div>
       <label class="f">${esc(t('insp.suffix'))}</label>
       <input type="text" id="setSuffix" value="${esc(SUFFIX())}" spellcheck="false">
       <div class="row" style="margin-top:12px"><button id="setFs">${esc(t('nav.fullscreen'))}</button></div>
@@ -210,7 +250,13 @@ function showSettingsModal(){
     </div>
     <div class="foot"><button class="primary" data-close>${esc(t('m.close'))}</button></div>`);
   $$('#themeSeg button').forEach(b=> b.onclick = ()=>applyTheme(b.dataset.t));
-  $('#setNote').onchange = e=> localStorage.setItem('pdfed.note', e.target.checked ? '1' : '0');
+  $$('#tbSeg button').forEach(b=> b.onclick = ()=>{ applyToolbar(b.dataset.p); showSettingsModal(); });
+  $('#setNote').onchange   = e=> localStorage.setItem('pdfed.note', e.target.checked ? '1' : '0');
+  $('#setAnnex1').onchange = e=> localStorage.setItem('pdfed.annexFirst', e.target.checked ? '1' : '0');
+  $('#setShot').onchange   = e=> localStorage.setItem('pdfed.shot', e.target.checked ? '1' : '0');
+  $('#setShotMax').onchange = e=> localStorage.setItem('pdfed.shotMax',
+    String(clamp(parseInt(e.target.value,10) || 25, 5, 100)));
+  $('#setShotHelp').onclick = showShotHelp;
   $('#setSuffix').onchange = e=>
     localStorage.setItem('pdfed.suffix', e.target.value.replace(/[\\/:*?"<>|]/g,''));
   $('#setLangBtn').onclick = showLangModal;
@@ -359,8 +405,9 @@ async function libRender(){
   if(Vault.locked){
     body.innerHTML = `<div class="stack">
       <div class="empty">${esc(t('lib.lockedMsg'))}</div>
-      <input type="password" id="qpass" placeholder="${esc(t('lib.password'))}" autocomplete="current-password">
+      ${pwFieldHtml('qpass','lib.password',false,'current-password')}
       <button class="primary" id="qunlock">${esc(t('lib.unlock'))}</button></div>`;
+    bindPw('qpass');
     $('#qunlock').onclick = async ()=>{
       if(await Vault.unlock($('#qpass').value)){ await libLoad(); drawItems(); toast(t('t.vaultUnlocked'),'ok'); }
       else toast(t('t.wrongPassword'),'err');
@@ -520,7 +567,7 @@ function libSaveDialog(){
     ${pwFieldHtml('lpw2','m.vaultPwd2',false)}
     <div class="foot"><button data-close>${esc(t('m.cancel'))}</button>
       <button class="primary" id="ioOk">${esc(t('nav.saveShort'))}</button></div>`);
-  bindPw('lpw1'); bindPw('lpw2');
+  bindPw('lpw1'); bindPw('lpw2'); bindPwMatch('lpw2','lpw1');
   $('#ioOk').onclick = async ()=>{
     const a = $('#lpw1').value, b = $('#lpw2').value;
     if(a.length < 8) return toast(t('t.min8'),'err');
@@ -727,7 +774,7 @@ $('#btnVault').onclick = ()=>{
       ${pwFieldHtml('v2','m.vaultPwd2',false)}
       <div class="foot"><button data-close>${esc(t('m.cancel'))}</button>
         <button class="primary" id="vok">${esc(t('m.vaultEnable'))}</button></div>`);
-    bindPw('v1'); bindPw('v2');
+    bindPw('v1'); bindPw('v2'); bindPwMatch('v2','v1');
     $('#vok').onclick = async ()=>{
       const a=$('#v1').value, b=$('#v2').value;
       if(a.length<6) return toast(t('t.min6'),'err');
@@ -737,9 +784,10 @@ $('#btnVault').onclick = ()=>{
     };
   } else if(Vault.locked){
     modal(`<h3>${esc(t('m.vaultUnlockTitle'))}</h3><p>${esc(t('m.vaultUnlockBody'))}</p>
-      <input type="password" id="v1" autocomplete="current-password">
+      ${pwFieldHtml('v1','m.vaultPwd',false,'current-password')}
       <div class="foot"><button data-close>${esc(t('m.cancel'))}</button>
         <button class="primary" id="vok">${esc(t('lib.unlock'))}</button></div>`);
+    bindPw('v1');
     $('#vok').onclick = async ()=>{
       if(await Vault.unlock($('#v1').value)){ closeModal(); await libLoad(); drawItems(); toast(t('t.vaultUnlocked'),'ok'); }
       else toast(t('t.wrongPassword'),'err');
@@ -857,7 +905,7 @@ async function loadPdf(file){
     Doc.pdf   = await pdfjsLib.getDocument({data: buf.slice(0), isEvalSupported:false}).promise;
     Object.assign(Doc, {name:file.name, total:Doc.pdf.numPages, page:1,
                         items:[], sel:null, undo:[], redo:[], autoFit:true, dirty:false});
-    Doc.vp1.clear(); Doc.rot.clear(); Doc.text.clear();
+    Doc.vp1.clear(); Doc.rot.clear(); Doc.text.clear(); shotCache.clear();
     setMode(null);
     setDocName(file.name);
     $('#btnClose').hidden = false;
@@ -887,7 +935,7 @@ function closeDoc(){
 function doCloseDoc(){
   Object.assign(Doc, {pdf:null, bytes:null, name:'', page:1, total:0,
     items:[], sel:null, undo:[], redo:[], viewport:null, autoFit:true, cmtOffset:0, dirty:false});
-  Doc.vp1.clear(); Doc.rot.clear(); Doc.text.clear();
+  Doc.vp1.clear(); Doc.rot.clear(); Doc.text.clear(); shotCache.clear();
   setMode(null);
   $('#stage').hidden = true; $('#hint').hidden = false; $('#btnClose').hidden = true;
   setDocName(''); $('#docName').classList.remove('full');
@@ -938,7 +986,9 @@ async function scanComments(){
 function sizePageField(){
   const d = Math.max(1, String(Doc.total || 1).length);
   const el = $('#pNum');
-  el.style.width = `calc(${d}ch + 6px)`;
+  /* 17 px couvrent le rembourrage (8) et les bordures (2), plus une marge de
+     confort : en box-sizing:border-box la largeur les englobe tous. */
+  el.style.width = `calc(${d}ch + 17px)`;
   el.maxLength = d;
 }
 
@@ -1064,19 +1114,97 @@ viewer.addEventListener('wheel', e=>{
 const touches = new Map();
 let pinch0 = null;
 viewer.addEventListener('pointerdown', e=>{ if(e.pointerType==='touch') touches.set(e.pointerId,e); });
+/* Pendant le pincement, la page est simplement mise à l'échelle par une
+   transformation CSS : le rendu reste net à l'ancienne définition mais suit le
+   geste en temps réel. Le nouveau rendu n'est calculé qu'au relâchement. */
 viewer.addEventListener('pointermove', e=>{
   if(e.pointerType!=='touch' || !touches.has(e.pointerId)) return;
   touches.set(e.pointerId,e);
   if(touches.size!==2 || !Doc.pdf) return;
   const [a,b] = [...touches.values()];
   const d = Math.hypot(a.clientX-b.clientX, a.clientY-b.clientY);
-  if(!pinch0){ pinch0 = {d, s:Doc.scale}; return; }
-  setScale(pinch0.s * d/pinch0.d);
+  const stage = $('#stage');
+  if(!pinch0){
+    const r = stage.getBoundingClientRect();
+    pinch0 = {d, s:Doc.scale,
+      ox: (a.clientX + b.clientX)/2 - r.left,
+      oy: (a.clientY + b.clientY)/2 - r.top};
+    stage.style.transformOrigin = `${pinch0.ox}px ${pinch0.oy}px`;
+    stage.style.willChange = 'transform';
+    return;
+  }
+  const k = clamp(d/pinch0.d, 0.05/pinch0.s, 6/pinch0.s);
+  pinch0.k = k;
+  stage.style.transform = `scale(${k})`;
 });
 ['pointerup','pointercancel'].forEach(ev=>viewer.addEventListener(ev, e=>{
-  touches.delete(e.pointerId); if(touches.size<2) pinch0=null;
+  touches.delete(e.pointerId);
+  if(touches.size >= 2 || !pinch0) return;
+  const stage = $('#stage'), k = pinch0.k || 1, base = pinch0.s;
+  pinch0 = null;
+  stage.style.transform = ''; stage.style.willChange = '';
+  if(Math.abs(k - 1) > 0.005) setScale(base * k);
 }));
-function scheduleRender(){ clearTimeout(Doc.rt); Doc.rt=setTimeout(renderPage,90); }
+function scheduleRender(){ clearTimeout(Doc.rt); Doc.rt=setTimeout(renderPage,60); }
+
+/* ---------------------------------------------------------------------
+   Navigation par geste : en butée, une poussée supplémentaire change de
+   page ; quand le document tient entièrement, un simple balayage suffit.
+   On ne réagit qu'au doigt posé — l'inertie produit des événements de
+   défilement, jamais de toucher, donc elle ne déclenche rien.
+   ------------------------------------------------------------------ */
+const EDGE = 2, SWIPE = 55;
+const canScrollX = ()=> viewer.scrollWidth  - viewer.clientWidth  > EDGE;
+const canScrollY = ()=> viewer.scrollHeight - viewer.clientHeight > EDGE;
+const atLeft   = ()=> viewer.scrollLeft <= EDGE;
+const atRight  = ()=> viewer.scrollLeft >= viewer.scrollWidth - viewer.clientWidth - EDGE;
+const atTop    = ()=> viewer.scrollTop  <= EDGE;
+const atBottom = ()=> viewer.scrollTop  >= viewer.scrollHeight - viewer.clientHeight - EDGE;
+
+let swipe = null;
+viewer.addEventListener('touchstart', e=>{
+  if(e.touches.length !== 1 || !Doc.pdf || Doc.mode){ swipe = null; return; }
+  const tt = e.touches[0];
+  swipe = {x:tt.clientX, y:tt.clientY, t:Date.now(), moved:false};
+}, {passive:true});
+viewer.addEventListener('touchmove', e=>{
+  if(swipe && e.touches.length === 1) swipe.moved = true;
+}, {passive:true});
+viewer.addEventListener('touchend', e=>{
+  if(!swipe || !swipe.moved || !Doc.pdf) { swipe = null; return; }
+  const tt = e.changedTouches[0];
+  const dx = tt.clientX - swipe.x, dy = tt.clientY - swipe.y;
+  swipe = null;
+  if(Math.max(Math.abs(dx), Math.abs(dy)) < SWIPE) return;
+  if(Math.abs(dx) >= Math.abs(dy)){
+    if(canScrollX() && !(dx < 0 ? atRight() : atLeft())) return;   // il reste à faire défiler
+    goPage(Doc.page + (dx < 0 ? 1 : -1));
+  } else {
+    if(canScrollY() && !(dy < 0 ? atBottom() : atTop())) return;
+    goPage(Doc.page + (dy < 0 ? 1 : -1));
+  }
+}, {passive:true});
+
+/* molette : même règle, avec un cumul pour éviter les sauts intempestifs */
+let wheelAcc = 0, wheelT = 0;
+viewer.addEventListener('wheel', e=>{
+  if(e.ctrlKey || !Doc.pdf) return;
+  const now = Date.now();
+  if(now - wheelT > 400) wheelAcc = 0;
+  wheelT = now;
+  const dy = e.deltaY, dx = e.deltaX;
+  const vertical = Math.abs(dy) >= Math.abs(dx);
+  const d = vertical ? dy : dx;
+  if(!d) return;
+  const blocked = vertical
+    ? (!canScrollY() || (d > 0 ? atBottom() : atTop()))
+    : (!canScrollX() || (d > 0 ? atRight()  : atLeft()));
+  if(!blocked){ wheelAcc = 0; return; }
+  wheelAcc += d;
+  if(Math.abs(wheelAcc) < 120) return;
+  wheelAcc = 0;
+  goPage(Doc.page + (d > 0 ? 1 : -1));
+}, {passive:true});
 
 /* ---------------------------------------------------------------------
    7. Éléments posés — coordonnées en points PDF
@@ -1431,15 +1559,39 @@ function addComment(r){
   editComment(it, true);
 }
 /* Saisie du texte. À la création, un commentaire vide est simplement abandonné. */
+const DRAFT = 'pdfed.cmtDraft';
+const draftGet = ()=>{ try{ return JSON.parse(localStorage.getItem(DRAFT) || 'null'); }catch(e){ return null; } };
+const draftClear = ()=> localStorage.removeItem(DRAFT);
+
 function editComment(it, isNew){
-  /* si l'on abandonne la saisie, l'outil se désarme aussi */
+  /* Un nouveau commentaire reprend le brouillon laissé par une saisie
+     interrompue autrement que par Valider ou Annuler — un clic à côté de la
+     fenêtre, par exemple, ou un rechargement de la page. */
   if(isNew){
-    const off = e=>{
-      if(e.target.closest('[data-close]') || e.target.id==='mask'){
-        setMode(null); $('#mask').removeEventListener('click', off);
-      }
-    };
-    $('#mask').addEventListener('click', off);
+    const d = draftGet();
+    if(d){ it.text = d.text || ''; it.author = d.author || it.author; it.color = d.color || it.color; }
+  }
+  /* sortie par le décor : on garde le texte et on désarme l'outil */
+  let settled = false;
+  const bail = e=>{
+    if(settled || !$('#mask').classList.contains('on')) return;
+    if(e && e.target && e.target.id !== 'mask') return;
+    stash(); settled = true;
+    $('#mask').removeEventListener('click', bail);
+    if(isNew) setMode(null);
+  };
+  const stash = ()=>{
+    if(!isNew) return;
+    const txt = $('#cTxt') ? $('#cTxt').value.trim() : '';
+    if(txt) localStorage.setItem(DRAFT, JSON.stringify({
+      text: txt, author: $('#cAuth') ? $('#cAuth').value.trim() : '', color: it.color
+    }));
+  };
+  if(isNew){
+    $('#mask').addEventListener('click', bail);
+    addEventListener('keydown', function esc(ev){
+      if(ev.key === 'Escape'){ bail({target:{id:'mask'}}); removeEventListener('keydown', esc); }
+    });
   }
   modal(`<h3>${esc(t('m.commentTitle'))}${isNew?'':' '+cmtNumber(it.id)}</h3>
     <p>${esc(t('m.commentBody'))}</p>
@@ -1449,14 +1601,21 @@ function editComment(it, isNew){
     <textarea id="cTxt" rows="5" placeholder="${esc(t('m.commentPh'))}">${esc(it.text||'')}</textarea>
     <label class="f">${esc(t('insp.color'))}</label>
     ${swatchHtml('cCol', it.color, false, 'cmt')}
-    <div class="foot"><button data-close>${esc(t('m.cancel'))}</button>
+    <div class="foot"><button id="cCancel">${esc(t('m.cancel'))}</button>
       <button class="primary" id="cOk">${esc(t('m.ok'))}</button></div>`);
+  /* Annuler est une décision explicite : le brouillon est abandonné. */
+  $('#cCancel').onclick = ()=>{
+    settled = true; if(isNew){ draftClear(); setMode(null); }
+    closeModal();
+  };
   let color = it.color;
   bindSwatch('cCol', v=>{ color = v; }, 'cmt');
   $('#cTxt').focus();
   $('#cOk').onclick = ()=>{
     const txt = $('#cTxt').value.trim();
-    if(isNew && !txt){ setMode(null); closeModal(); toast(t('t.cmtEmpty')); return; }
+    settled = true;
+    if(isNew && !txt){ draftClear(); setMode(null); closeModal(); toast(t('t.cmtEmpty')); return; }
+    if(isNew) draftClear();
     snapshot();
     it.text = txt;
     it.author = $('#cAuth').value.trim();
@@ -1501,7 +1660,15 @@ document.addEventListener('keydown', e=>{
   const k = e.key.toLowerCase();
   if((e.ctrlKey||e.metaKey) && k==='z'){ e.preventDefault(); return e.shiftKey ? redo() : undo(); }
   if((e.ctrlKey||e.metaKey) && k==='y'){ e.preventDefault(); return redo(); }
-  const it = selected(); if(!it) return;
+  const it = selected();
+  if(!it){
+    /* sans élément sélectionné, les flèches parcourent le document */
+    const nav = {ArrowRight:1, ArrowDown:1, ArrowLeft:-1, ArrowUp:-1}[e.key];
+    if(nav && Doc.pdf){ e.preventDefault(); goPage(Doc.page + nav); }
+    if(e.key === 'PageDown' && Doc.pdf){ e.preventDefault(); goPage(Doc.page + 1); }
+    if(e.key === 'PageUp'   && Doc.pdf){ e.preventDefault(); goPage(Doc.page - 1); }
+    return;
+  }
   if(e.key==='Delete'||e.key==='Backspace'){ e.preventDefault(); return removeItem(it.id); }
   if(e.key==='Escape'){ Doc.sel=null; return drawItems(); }
   const step = e.shiftKey?10:1;
@@ -1813,6 +1980,45 @@ async function exportPdf(){
      bulle : c'est lui qui porte le texte du commentaire.
    Le flux de contenu d'origine n'est jamais réécrit, seulement complété.
    --------------------------------------------------------------------- */
+/* Rend la zone encadrée d'un commentaire en image, redressée si le cadre est
+   pivoté. Le rendu de la page est mis en cache : plusieurs commentaires sur une
+   même page ne la recalculent pas.
+
+   La transformation inverse celle du cadre. L'élément est affiché tourné de
+   -rot degrés autour de son centre c ; un point local (u,v) apparaît donc en
+   c + R(rot)·(u,v). Pour redresser, on applique R⁻¹ après avoir ramené c à
+   l'origine, ce qui donne translate(w/2,h/2) ∘ R(rot) ∘ translate(−c). */
+const shotCache = new Map();
+async function pageCanvas(n, k){
+  const key = n + '@' + k;
+  if(!shotCache.has(key)){
+    const p  = await Doc.pdf.getPage(n);
+    const vp = p.getViewport({scale:k});
+    const cv = document.createElement('canvas');
+    cv.width = Math.ceil(vp.width); cv.height = Math.ceil(vp.height);
+    await p.render({canvasContext: cv.getContext('2d'), viewport: vp}).promise;
+    shotCache.set(key, cv);
+  }
+  return shotCache.get(key);
+}
+async function shotOf(it, maxHpt){
+  const k = 2;                                   // deux fois la définition, pour rester net
+  const src = await pageCanvas(it.page, k);
+  const hh  = Math.min(it.h, maxHpt);            // troncature par le bas
+  const cv  = document.createElement('canvas');
+  cv.width  = Math.max(1, Math.round(it.w * k));
+  cv.height = Math.max(1, Math.round(hh  * k));
+  const ctx = cv.getContext('2d');
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.save();
+  ctx.translate(it.w * k / 2, it.h * k / 2);
+  ctx.rotate(it.rot * Math.PI / 180);
+  ctx.translate(-(it.x + it.w/2) * k, -(it.y + it.h/2) * k);
+  ctx.drawImage(src, 0, 0);
+  ctx.restore();
+  return {bytes: await canvasToBytes(cv, 'image/png'), w: it.w, h: hh};
+}
+
 function wrapPdf(txt, font, size, maxW){
   const out = [];
   for(const para of String(txt).split('\n')){
@@ -1826,7 +2032,10 @@ function wrapPdf(txt, font, size, maxW){
   }
   return out;
 }
-const NOTE_ON = ()=> localStorage.getItem('pdfed.note') !== '0';
+const NOTE_ON   = ()=> localStorage.getItem('pdfed.note') !== '0';
+const ANNEX_1ST = ()=> localStorage.getItem('pdfed.annexFirst') === '1';
+const SHOT_ON   = ()=> localStorage.getItem('pdfed.shot') === '1';
+const SHOT_MAX  = ()=> clamp(parseInt(localStorage.getItem('pdfed.shotMax') || '25', 10) || 25, 5, 100);
 async function buildComments(out, pages, getFont){
   const list = commentsInOrder();
   const noteOn = NOTE_ON();
@@ -1857,8 +2066,11 @@ async function buildComments(out, pages, getFont){
     page.drawLine({start:{x:MA,y:sz.height-66}, end:{x:sz.width-MA,y:sz.height-66},
                    thickness:.7, color:rgb(.72,.74,.8)});
   };
+  /* Option : l'annexe ouvre le document au lieu de le clore. Les pages insérées
+     le sont dans l'ordre, juste après celles déjà placées lors de cet export. */
+  let inserted = 0;
   const newAnnex = ()=>{
-    const p = out.addPage([W,H]);
+    const p = ANNEX_1ST() ? out.insertPage(inserted++, [W,H]) : out.addPage([W,H]);
     p.node.set(K_ANNEX, PDFNumber.of(1));
     header(p);
     return p;
@@ -1877,9 +2089,22 @@ async function buildComments(out, pages, getFont){
   const dests = [];
 
   const num = i => Doc.cmtOffset + i + 1;
-  list.forEach((it,i)=>{
+  /* Copie du passage : rendue avant la mise en page, pour connaître sa hauteur. */
+  const shots = [];
+  if(SHOT_ON() && Doc.pdf){
+    const maxH = H * SHOT_MAX() / 100;
+    for(const it of list){
+      try{
+        const sh = await shotOf(it, maxH);
+        const sc = Math.min(1, TW / sh.w);       // jamais plus large que la colonne
+        shots.push({img: await out.embedPng(sh.bytes), w: sh.w * sc, h: sh.h * sc});
+      }catch(err){ console.warn('extrait:', err.message); shots.push(null); }
+    }
+  }
+  for(let i = 0; i < list.length; i++){
+    const it = list[i], sh = shots[i] || null;
     const lines = wrapPdf(it.text || '', reg, 10, TW);
-    const need  = 34 + lines.length*14 + 34;
+    const need  = 34 + (sh ? sh.h + 10 : 0) + lines.length*14 + 34;
     if(y - need < 64){ annex = newAnnex(); y = H - 104; }
     const c = hexRgb(it.color);
     annex.drawCircle({x:MA+9, y:y+4, size:9.5, color:c});
@@ -1887,6 +2112,13 @@ async function buildComments(out, pages, getFont){
     const titre = `${t('exp.page')} ${it.page}${it.author ? '  ·  '+it.author : ''}`;
     annex.drawText(titre, {x:MA+28, y:y, size:10.5, font:bold, color:rgb(.12,.13,.2)});
     y -= 18;
+    if(sh){
+      y -= sh.h;
+      annex.drawImage(sh.img, {x:MA+28, y:y, width:sh.w, height:sh.h});
+      annex.drawRectangle({x:MA+28, y:y, width:sh.w, height:sh.h,
+        borderWidth:.6, borderColor:rgb(.72,.74,.8)});
+      y -= 12;
+    }
     lines.forEach(l=>{ annex.drawText(l, {x:MA+28, y:y, size:10, font:reg, color:rgb(.12,.13,.2)}); y -= 14; });
     y -= 12;
     const bw = Math.min(200, reg.widthOfTextAtSize(t('exp.back'), 9.5) + 26);
@@ -1895,7 +2127,7 @@ async function buildComments(out, pages, getFont){
     annex.drawText(t('exp.back'), {x:MA+37, y:y+2.5, size:9.5, font:reg, color:rgb(.2,.22,.32)});
     dests.push({annex, top:y+70, btn:[MA+28, y-4, MA+28+bw, y+17]});
     y -= 40;
-  });
+  }
   annex.node.set(K_Y, PDFNumber.of(Math.round(y)));   // reprise au prochain passage
 
   /* --- marques sur les pages, annotations, aller-retour ------------------ */
@@ -1990,6 +2222,39 @@ async function saveFile(blob, filename){
 /* ---------------------------------------------------------------------
    10. Écran d'accueil / aide
    ------------------------------------------------------------------ */
+/* Aide illustrée : la même note, avec et sans copie du passage. Les vignettes
+   sont dessinées en SVG plutôt qu'embarquées en image, pour suivre le thème. */
+function annexSample(withShot){
+  const c = '#cc2a2e';
+  const line = (x,y,w,o) => `<rect x="${x}" y="${y}" width="${w}" height="3.4" rx="1.7"
+     fill="currentColor" opacity="${o}"/>`;
+  return `<svg viewBox="0 0 150 116" xmlns="http://www.w3.org/2000/svg" color="currentColor">
+    <rect x="0.5" y="0.5" width="149" height="115" rx="4" fill="none" stroke="currentColor" opacity=".25"/>
+    ${line(12,12,64,.85)}
+    <line x1="12" y1="22" x2="138" y2="22" stroke="currentColor" opacity=".25"/>
+    <circle cx="17" cy="34" r="6" fill="${c}"/>
+    <text x="17" y="37" font-size="7.5" font-weight="700" fill="#fff" text-anchor="middle">1</text>
+    ${line(28,31,54,.8)}
+    ${withShot ? `
+      <rect x="28" y="43" width="104" height="26" fill="none" stroke="${c}" stroke-width="1.2"/>
+      <rect x="28" y="43" width="104" height="26" fill="${c}" opacity=".05"/>
+      ${line(33,49,86,.45)}${line(33,57,68,.45)}
+      ${line(28,77,104,.55)}${line(28,85,88,.55)}
+      <rect x="28" y="95" width="46" height="11" rx="3" fill="none" stroke="currentColor" opacity=".45"/>`
+    : `
+      ${line(28,45,104,.55)}${line(28,53,88,.55)}${line(28,61,72,.55)}
+      <rect x="28" y="73" width="46" height="11" rx="3" fill="none" stroke="currentColor" opacity=".45"/>`}
+  </svg>`;
+}
+function showShotHelp(){
+  modal(`<h3>${esc(t('help.shotTitle'))}</h3><p>${esc(t('help.shotBody'))}</p>
+    <div class="examples">
+      <figure>${annexSample(true)}<figcaption>${esc(t('help.withShot'))}</figcaption></figure>
+      <figure>${annexSample(false)}<figcaption>${esc(t('help.withoutShot'))}</figcaption></figure>
+    </div>
+    <div class="foot"><button class="primary" data-close>${esc(t('m.close'))}</button></div>`);
+}
+
 function showSplash(firstRun){
   const step = (n,a,b)=>`<div class="step"><span class="n">${n}</span>
     <div><b>${esc(t(a))}</b><span>${esc(t(b))}</span></div></div>`;
@@ -2076,6 +2341,7 @@ addEventListener('resize', ()=>{
 });
 
 applyI18n();
+applyToolbar(tbPos());
 updateFlag();
 $('#appVer').textContent = APP_VERSION;
 setDocName('');

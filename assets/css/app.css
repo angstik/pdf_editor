@@ -128,8 +128,11 @@ header{padding-top:max(8px,env(safe-area-inset-top,0px))}
    l'autre. Si la largeur ne suffit pas, ils passent à la ligne d'un bloc. */
 .grp{display:flex;align-items:center;gap:6px;flex:0 0 auto}
 .toolbar .spacer{min-width:8px}
-.pager #pNum{width:calc(3ch + 6px);min-width:0;text-align:center;font-size:14px;
-  font-weight:600;padding:5px 1px}
+/* La largeur est posée par le script d'après le nombre de chiffres du total.
+   En box-sizing:border-box elle englobe rembourrage et bordures : ceux-ci sont
+   donc ajoutés au calcul, sinon il ne reste presque rien pour les chiffres. */
+.pager #pNum{box-sizing:border-box;min-width:0;text-align:center;font-size:14px;
+  font-weight:600;padding:5px 4px}
 .pager .tot{font-size:13px;font-weight:600;color:var(--muted);white-space:nowrap;
   margin-right:2px}
 .zlbl{font-family:var(--mono);width:46px;text-align:center;color:var(--muted);flex:0 0 auto}
@@ -143,7 +146,43 @@ header{padding-top:max(8px,env(safe-area-inset-top,0px))}
 .menu button:hover{background:var(--panel-2)}
 .menu button.on{color:var(--ink);font-weight:600}
 
+/* ---------- barre d'outils latérale ---------- */
+body.tb-side{grid-template-rows:auto 1fr;grid-template-columns:auto 1fr}
+body.tb-side header{grid-column:1 / -1}
+body.tb-side .toolbar{flex-direction:column;align-items:stretch;flex-wrap:nowrap;
+  border-bottom:0;overflow:auto;padding:8px 6px;gap:6px}
+body.tb-side .toolbar .grp{flex-direction:column;align-items:stretch}
+body.tb-side .toolbar .sep{width:100%;height:1px}
+body.tb-side .toolbar .spacer{min-height:8px}
+body.tb-side .pager{flex-direction:column;gap:4px}
+body.tb-side .pager #pNum{width:100%!important}
+body.tb-side .hide-sm{display:none}
+body.tb-left .toolbar{grid-row:2;grid-column:1;border-right:1px solid var(--line)}
+body.tb-left main{grid-row:2;grid-column:2}
+body.tb-right{grid-template-columns:1fr auto}
+body.tb-right .toolbar{grid-row:2;grid-column:2;border-left:1px solid var(--line)}
+body.tb-right main{grid-row:2;grid-column:1}
+
 /* ---------- colonnes ---------- */
+/* Trois dispositions pour la barre d'outils, obtenues en replaçant les mêmes
+   éléments dans la grille du corps : au-dessus (défaut), à gauche ou à droite.
+   En paysage, la barre rejoint la ligne de l'en-tête pour rendre de la hauteur. */
+body.tools-left, body.tools-right{grid-template-rows:auto 1fr}
+body.tools-left{grid-template-columns:auto 1fr}
+body.tools-right{grid-template-columns:1fr auto}
+body.tools-left > header, body.tools-right > header{grid-column:1 / 3}
+body.tools-left  > .toolbar{grid-row:2;grid-column:1;border-bottom:0;border-right:1px solid var(--line)}
+body.tools-right > .toolbar{grid-row:2;grid-column:2;border-bottom:0;border-left:1px solid var(--line)}
+body.tools-left  > main{grid-row:2;grid-column:2}
+body.tools-right > main{grid-row:2;grid-column:1}
+body.tools-left > .toolbar, body.tools-right > .toolbar{
+  flex-direction:column;justify-content:flex-start;padding:8px 6px;overflow-y:auto}
+body.tools-left .toolbar .grp, body.tools-right .toolbar .grp{flex-direction:column}
+body.tools-left .toolbar .sep, body.tools-right .toolbar .sep{width:22px;height:1px}
+body.tools-left .toolbar .zlbl, body.tools-right .toolbar .zlbl{width:auto;font-size:10px}
+body.tools-left .toolbar .pager, body.tools-right .toolbar .pager{flex-direction:column}
+body.tools-left .toolbar .spacer, body.tools-right .toolbar .spacer{min-height:8px}
+
 main{display:grid;grid-template-columns:266px 1fr 300px;min-height:0;min-width:0}
 aside{background:var(--panel);display:flex;flex-direction:column;min-height:0}
 aside.left{border-right:1px solid var(--line)}
@@ -180,6 +219,10 @@ aside.right{border-left:1px solid var(--line)}
    devenir inatteignable au défilement dès que le document est agrandi. */
 .stage{position:relative;height:max-content;box-shadow:var(--shadow);background:#fff;
   flex:0 0 auto;margin:auto}
+/* pendant le pincement la mise à l'échelle est purement visuelle ; le rendu
+   définitif n'intervient qu'au relâchement */
+.stage.pinching{will-change:transform}
+.stage.pinching .layer{pointer-events:none}
 .stage canvas{display:block}
 .layer{position:absolute;inset:0;overflow:hidden}
 .item{position:absolute;transform-origin:50% 50%;cursor:move;touch-action:none}
@@ -270,6 +313,16 @@ button.rel.has .dot{display:block}
 .meter i{flex:1;height:6px;border-radius:4px;background:var(--panel-2);
   border:1px solid var(--line);transition:background .15s}
 .meter-lbl{display:block;font-size:11px;color:var(--muted);margin-top:5px;min-height:14px}
+.pw input.bad{border-color:var(--stamp);box-shadow:0 0 0 2px rgba(217,87,87,.18)}
+.pw-err{display:block;font-size:11px;color:var(--stamp);margin-top:4px;min-height:14px}
+.pw input.bad{border-color:var(--stamp);box-shadow:0 0 0 1px var(--stamp) inset}
+.pw-err{display:block;font-size:11px;color:var(--stamp);margin-top:4px;min-height:14px}
+
+.examples{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:6px}
+.examples figure{margin:0}
+.examples figcaption{font-size:11px;color:var(--muted);margin-top:5px;text-align:center}
+.examples svg{width:100%;height:auto;border:1px solid var(--line);border-radius:6px;background:#fff}
+@media (max-width:560px){ .examples{grid-template-columns:1fr} }
 
 /* ---------- modales ---------- */
 .mask{position:fixed;inset:0;background:rgba(6,7,12,.72);display:none;align-items:center;
@@ -310,7 +363,7 @@ button.rel.has .dot{display:block}
   button{padding:6px 8px;min-height:34px}
   .icon{width:34px;padding:4px}
   .pager{gap:3px}
-  .pager #pNum{font-size:14px;padding:5px 2px}
+  .pager #pNum{font-size:14px}
   aside{position:fixed;top:0;bottom:0;width:min(330px,88vw);z-index:40;box-shadow:var(--shadow);
     transform:translateX(-102%);transition:transform .22s ease;padding-top:env(safe-area-inset-top)}
   aside.right{right:0;transform:translateX(102%)}
@@ -333,8 +386,21 @@ button.rel.has .dot{display:block}
   .sep{height:20px}
   button{padding:6px 6px;min-height:32px}
 }
-/* paysage : les deux barres se compriment pour laisser la page visible */
+/* paysage : en-tête et outils partagent une seule ligne, le nom se raccourcit */
+@media (max-height:560px) and (orientation:landscape){
+  body:not(.tools-left):not(.tools-right){grid-template-rows:auto 1fr;grid-template-columns:1fr auto}
+  body:not(.tools-left):not(.tools-right) > header{grid-row:1;grid-column:1;border-right:1px solid var(--line)}
+  body:not(.tools-left):not(.tools-right) > .toolbar{grid-row:1;grid-column:2}
+  body:not(.tools-left):not(.tools-right) > main{grid-row:2;grid-column:1 / 3}
+  header, .toolbar{flex-wrap:nowrap}
+  .docname{max-width:22vw;flex:0 1 auto}
+  .toolbar .spacer{display:none}
+}
 @media (max-height:520px) and (orientation:landscape){
+  .docname{flex:0 1 120px;max-width:120px;font-size:12px}
+  .docname.full{flex:0 1 120px;max-width:120px;white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis;word-break:normal}
+  header,.toolbar{flex-wrap:nowrap}
   header,.toolbar{padding:3px 6px}
   header{padding-top:max(3px,env(safe-area-inset-top,0px))}
   .icon{width:30px;min-height:30px}
