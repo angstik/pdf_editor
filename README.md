@@ -222,6 +222,16 @@ sur mobile le menu natif habituel : photothèque, appareil photo, fichiers. Des 
 sont assemblées en un document A4, une par page, à l'échelle `min(largeur/l, hauteur/h)` : l'image
 sature l'axe qui contraint le premier, sans rotation, sans recadrage et sans déformation.
 
+**Îlot et barre d'état sur iOS.** Deux métadonnées décident si l'application installée dessine
+sous l'îlot ou sous lui. `viewport-fit=cover` étend la zone de rendu à tout l'écran, encoches
+comprises, et `apple-mobile-web-app-status-bar-style: black-translucent` rend la barre d'état
+transparente par-dessus le contenu. Les deux ont été retirées : sans `viewport-fit=cover`, iOS
+insère lui-même la marge et la mise en page commence sous l'îlot ; avec le style `default`, la
+barre d'état reste opaque et prend la teinte de `theme-color`, que l'application met à jour à
+chaque changement de thème. Les valeurs `env(safe-area-inset-*)` retombent alors à zéro et ne
+subsistent dans la feuille de style, assorties d'un repli explicite, que pour les plateformes
+qui dessinent réellement sous les encoches.
+
 **Cadre du navigateur.** Sur iPhone, l'API plein écran ne s'applique qu'aux vidéos : seul un
 ajout à l'écran d'accueil supprime les barres du navigateur, y compris en paysage. Le bouton
 Plein écran des réglages fonctionne partout ailleurs et le signale poliment quand il ne peut rien.
