@@ -31,13 +31,15 @@
   <span class="docname" id="docName"></span>
   <button id="btnClose" class="icon ghost" data-i18n-title="nav.closeDoc" aria-label="" hidden>✕</button>
   <span class="spacer"></span>
+  <span class="grp" id="headSlot"></span>
+  <button id="btnClip" class="icon ghost" data-i18n-title="insp.clip" aria-label="">📋</button>
   <button id="btnExport" class="primary hide-sm" data-i18n="nav.save"></button>
   <button id="btnExportSm" class="icon only-sm primary" data-i18n-title="nav.save" aria-label="">⬇</button>
   <button id="btnInsp" class="icon only-sm rel" data-i18n-title="nav.properties" aria-label="">▤<span class="dot"></span></button>
 </header>
 
 <div class="toolbar">
-  <span class="grp">
+  <span class="grp" id="grpNav">
     <button id="pPrev" class="icon glyph-lg" data-i18n-title="tool.prev" aria-label="">‹</button>
     <input type="text" id="pNum" value="–" inputmode="numeric" maxlength="4" maxlength="4" data-i18n-title="tool.pageNumber" aria-label="">
     <span class="tot" id="pTot">/ –</span>
@@ -50,10 +52,12 @@
     <button id="zFitSm" class="icon only-sm ghost" data-i18n-title="tool.fitLong" aria-label="">⤢</button>
   </span>
   <span class="spacer"></span>
-  <span class="grp">
+  <span class="grp" id="grpHist">
     <button id="btnUndo" class="icon glyph-lg" data-i18n-title="tool.undo" aria-label="">↶</button>
     <button id="btnRedo" class="icon glyph-lg" data-i18n-title="tool.redo" aria-label="">↷</button>
-    <span class="sep"></span>
+  </span>
+  <span class="sep" id="sepTools"></span>
+  <span class="grp" id="grpAdd">
     <button id="btnText" class="icon" data-i18n-title="tool.addText" aria-label="">T</button>
     <button id="btnHl" class="icon glyph-lg ghost" data-i18n-title="tool.highlight" aria-label="">▧</button>
     <button id="btnCmt" class="icon ghost" data-i18n-title="tool.comment" aria-label="">✎</button>

@@ -19,7 +19,7 @@ const bind = (ids, fn)=> ids.forEach(id=>{ const el=$(id); if(el) el.onclick = f
 
 let toastT;
 let deferredPrompt = null;   // requête d'installation PWA, captée plus bas
-const APP_VERSION = 'v15';
+const APP_VERSION = 'v16';
 /* Position de la barre d'outils : en haut, ou en colonne à gauche ou à droite. */
 const TB_POS = ['top','left','right'];
 const tbPos = ()=> TB_POS.includes(localStorage.getItem('pdfed.tb')) ? localStorage.getItem('pdfed.tb') : 'top';
@@ -31,6 +31,20 @@ function syncToolbar(){
   document.body.classList.toggle('tb-side',  side);
   document.body.classList.toggle('tb-left',  side && pos === 'left');
   document.body.classList.toggle('tb-right', side && pos === 'right');
+  /* En colonne, la navigation et l'historique remontent dans la barre du haut :
+     la colonne ne garde que les outils d'ajout, et reste étroite. */
+  const slot = $('#headSlot'), bar = $('.toolbar');
+  const nav = $('#grpNav'), hist = $('#grpHist'), sep = $('#sepTools');
+  if(side){
+    if(nav.parentElement !== slot){ slot.append(nav, hist); }
+    sep.hidden = true;
+  } else {
+    if(nav.parentElement === slot){
+      bar.prepend(nav);
+      bar.insertBefore(hist, sep);
+    }
+    sep.hidden = false;
+  }
 }
 function applyToolbar(pos){
   if(!TB_POS.includes(pos)) pos = 'top';
@@ -265,7 +279,6 @@ function showSettingsModal(){
       <label class="f"><input type="checkbox" id="setNote" ${NOTE_ON()?'checked':''}>${esc(t('insp.marginNote'))}</label>
       <label class="f"><input type="checkbox" id="setAnnex1" ${ANNEX_1ST()?'checked':''}>${esc(t('insp.annexFirst'))}</label>
       <label class="f"><input type="checkbox" id="setShot" ${SHOT_ON()?'checked':''}>${esc(t('insp.shot'))}</label>
-      <label class="f"><input type="checkbox" id="setClip" ${CLIP_ON()?'checked':''}>${esc(t('insp.clip'))}</label>
       <label class="f">${esc(t('insp.shotMax'))}</label>
       <div class="row"><input type="number" id="setShotMax" min="5" max="100" step="5" value="${SHOT_MAX()}">
         <button id="setShotHelp" style="flex:0 0 44px">?</button></div>
@@ -276,13 +289,13 @@ function showSettingsModal(){
       <div class="row" style="margin-top:6px${deferredPrompt?'':';display:none'}">
         <button id="setInstall" class="primary">${esc(t('nav.install'))}</button></div>
     </div>
-    <div class="foot"><button class="primary" data-close>${esc(t('m.close'))}</button></div>`);
+    <div class="foot"><button class="primary" id="setDone">${esc(t('m.close'))}</button></div>`);
+  $('#setDone').onclick = ()=>{ closeModal(); drawer('#paneInsp', false); };
   $$('#themeSeg button').forEach(b=> b.onclick = ()=>applyTheme(b.dataset.t));
   $$('#tbSeg button').forEach(b=> b.onclick = ()=>{ applyToolbar(b.dataset.p); showSettingsModal(); });
   $('#setNote').onchange   = e=> localStorage.setItem('pdfed.note', e.target.checked ? '1' : '0');
   $('#setAnnex1').onchange = e=> localStorage.setItem('pdfed.annexFirst', e.target.checked ? '1' : '0');
   $('#setShot').onchange   = e=> localStorage.setItem('pdfed.shot', e.target.checked ? '1' : '0');
-  $('#setClip').onchange   = e=> localStorage.setItem('pdfed.clip', e.target.checked ? '1' : '0');
   $('#setShotMax').onchange = e=> localStorage.setItem('pdfed.shotMax',
     String(clamp(parseInt(e.target.value,10) || 25, 5, 100)));
   $('#setShotHelp').onclick = showShotHelp;
@@ -1470,6 +1483,7 @@ async function drawItems(){
   } else layer.innerHTML = '';
   renderInspector(); renderItemList(); syncHistoryButtons();
   $('#btnInsp').classList.toggle('has', !!Doc.sel);
+  $('#btnClip').disabled = !Doc.items.some(i=>i.type==='comment');
 }
 
 /* Double-clic sur la poignée ronde : angle ramené au multiple de 90° le plus proche. */
@@ -1941,6 +1955,10 @@ function toPdf(vp1, it, pageRot, lx, ly){
   return {x:c[0] + lx*cs - ly*sn, y:c[1] + lx*sn + ly*cs, theta:pageRot + it.rot};
 }
 
+/* La copie doit partir d'un geste de l'utilisateur : Safari refuse une écriture
+   dans le presse-papiers qui suit une opération longue comme la génération du
+   PDF. D'où un bouton dédié plutôt qu'un automatisme à l'enregistrement. */
+$('#btnClip').onclick = ()=> clipComments();
 bind(['#btnExport','#btnExportSm'], exportPdf);
 const SUFFIX = ()=> localStorage.getItem('pdfed.suffix') ?? '-annote';
 /* Nom proposé avant génération : base du document + suffixe paramétrable. */
@@ -2042,7 +2060,6 @@ async function exportPdf(){
     await saveBytes(await out.save(), exportName);
     Doc.dirty = false;
     toast(t('t.pdfDone'),'ok');
-    if(CLIP_ON()) await clipComments();
   }catch(err){
     console.error(err);
     toast(err.message==='locked' ? t('t.lockedExport') : t('t.genFail',{e:err.message}), 'err');
@@ -2154,7 +2171,6 @@ function wrapPdf(txt, font, size, maxW){
   return out;
 }
 const NOTE_ON   = ()=> localStorage.getItem('pdfed.note') !== '0';
-const CLIP_ON   = ()=> localStorage.getItem('pdfed.clip') === '1';
 const ANNEX_1ST = ()=> localStorage.getItem('pdfed.annexFirst') === '1';
 const SHOT_ON   = ()=> localStorage.getItem('pdfed.shot') === '1';
 const SHOT_MAX  = ()=> clamp(parseInt(localStorage.getItem('pdfed.shotMax') || '25', 10) || 25, 5, 100);

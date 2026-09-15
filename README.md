@@ -89,14 +89,19 @@ Installable sur ordinateur et sur mobile (Android / iOS), utilisable hors ligne.
   page. Au clavier, les flèches parcourent le document tant qu'aucun élément n'est sélectionné.
 - **Barre d'outils en haut, à gauche ou à droite**, au choix. La colonne latérale ne s'active
   qu'en paysage : en portrait elle prendrait une largeur déjà rare, et la préférence est
-  simplement mise en sommeil jusqu'à la rotation suivante.
+  simplement mise en sommeil jusqu'à la rotation suivante. En colonne, la navigation de page et
+  l'historique remontent dans la barre supérieure ; la colonne ne conserve que les outils
+  d'ajout et reste étroite. Le placement des trois blocs passe par des zones de grille nommées,
+  le placement implicite étant trop sensible à l'ordre des éléments.
 - **Assemblage de la sélection** : plusieurs PDF sont concaténés dans l'ordre choisi, les images
   deviennent des pages A4, et une sélection mixte se comporte comme on l'attend. Un PDF seul est
   chargé tel quel, sans recopie page à page qui lui ferait perdre ce que nous ne savons pas
   transporter.
 - **Double-clic sur les chevrons** : première ou dernière page.
-- **Récapitulatif dans le presse-papiers** à l'enregistrement, en option : texte et HTML, avec
-  les vignettes intégrées en `data:` URI.
+- **Récapitulatif dans le presse-papiers** par un bouton dédié, en texte et en HTML, vignettes
+  intégrées en `data:` URI. La copie doit partir d'un geste : Safari refuse une écriture dans le
+  presse-papiers qui suivrait une opération longue comme la génération du PDF, ce qui écartait
+  l'idée d'un automatisme à l'enregistrement.
 - **Annexe des commentaires en tête ou en fin de document**, au choix.
 - **Copie du passage dans l'annexe** : chaque note peut reprendre en image la zone encadrée, à
   sa taille d'origine, redressée si le cadre est pivoté, tronquée par le bas au-delà d'une
