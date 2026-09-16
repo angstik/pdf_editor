@@ -12,6 +12,9 @@ const I18N = {
 /* ------------------------------------------------------------------ FR */
 fr:{
 locale:'fr-FR',
+'nav.update':"Mettre à jour",
+'t.updating':"Recherche d'une mise à jour…",
+'t.upToDate':"L'application est à jour",
 'insp.beta':"Saisie flottante des commentaires (bêta)",
 'm.toComposer':"Basculer en saisie flottante",
 'insp.shotHere':"Reproduire la source",
@@ -196,6 +199,9 @@ locale:'fr-FR',
 /* ------------------------------------------------------------------ EN */
 en:{
 locale:'en-GB',
+'nav.update':"Update",
+'t.updating':"Checking for an update…",
+'t.upToDate':"The app is up to date",
 'insp.beta':"Floating comment entry (beta)",
 'm.toComposer':"Switch to floating entry",
 'insp.shotHere':"Reproduce the source",
@@ -380,6 +386,9 @@ locale:'en-GB',
 /* ------------------------------------------------------------------ DE */
 de:{
 locale:'de-DE',
+'nav.update':"Aktualisieren",
+'t.updating':"Suche nach einer Aktualisierung…",
+'t.upToDate':"Die App ist aktuell",
 'insp.beta':"Schwebende Kommentareingabe (Beta)",
 'm.toComposer':"Zur schwebenden Eingabe wechseln",
 'insp.shotHere':"Die Stelle abbilden",
@@ -565,6 +574,9 @@ locale:'de-DE',
 /* ------------------------------------------------------------------ ES */
 es:{
 locale:'es-ES',
+'nav.update':"Actualizar",
+'t.updating':"Buscando una actualización…",
+'t.upToDate':"La aplicación está actualizada",
 'insp.beta':"Entrada flotante de comentarios (beta)",
 'm.toComposer':"Cambiar a la entrada flotante",
 'insp.shotHere':"Reproducir el original",
@@ -749,6 +761,9 @@ locale:'es-ES',
 /* ------------------------------------------------------------------ IT */
 it:{
 locale:'it-IT',
+'nav.update':"Aggiorna",
+'t.updating':"Ricerca di un aggiornamento…",
+'t.upToDate':"L'applicazione è aggiornata",
 'insp.beta':"Inserimento fluttuante dei commenti (beta)",
 'm.toComposer':"Passa all'inserimento fluttuante",
 'insp.shotHere':"Riprodurre l'originale",
@@ -933,6 +948,9 @@ locale:'it-IT',
 /* ------------------------------------------------------------------ UK */
 uk:{
 locale:'uk-UA',
+'nav.update':"Оновити",
+'t.updating':"Пошук оновлення…",
+'t.upToDate':"Застосунок актуальний",
 'insp.beta':"Плаваюче введення коментарів (бета)",
 'm.toComposer':"Перейти до плаваючого введення",
 'insp.shotHere':"Відтворити оригінал",
@@ -1117,6 +1135,9 @@ locale:'uk-UA',
 /* ------------------------------------------------------------------ CS */
 cs:{
 locale:'cs-CZ',
+'nav.update':"Aktualizovat",
+'t.updating':"Hledání aktualizace…",
+'t.upToDate':"Aplikace je aktuální",
 'insp.beta':"Plovoucí zadávání komentářů (beta)",
 'm.toComposer':"Přepnout na plovoucí zadávání",
 'insp.shotHere':"Reprodukovat předlohu",

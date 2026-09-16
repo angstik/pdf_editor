@@ -92,6 +92,11 @@ Installable sur ordinateur et sur mobile (Android / iOS), utilisable hors ligne.
   chargé tel quel, sans recopie page à page qui lui ferait perdre ce que nous ne savons pas
   transporter.
 - **Double-clic sur les chevrons** : première ou dernière page.
+- **Panneaux repliables sur ordinateur** : la bibliothèque et les propriétés se replient par
+  leurs boutons ☰ et ⚙, rendant toute la largeur au document. Les colonnes sont déclarées en
+  `auto`, de sorte que masquer un panneau suffit à redistribuer la place.
+- **Bouton de mise à jour** dans les réglages : il interroge le service worker, active la version
+  en attente et recharge, au lieu d'attendre la fermeture de tous les onglets.
 - **Saisie flottante des commentaires**, en option et à l'état de mise au point : un panneau non
   modal, posé en bas de l'écran, qui ne masque presque rien. Le cadre est posé dès le tracé, le
   document reste défilable et zoomable pendant la saisie, et le panneau ne se referme que par
@@ -104,7 +109,8 @@ Installable sur ordinateur et sur mobile (Android / iOS), utilisable hors ligne.
 - **Annexe des commentaires en tête ou en fin de document**, au choix.
 - **Copie du passage dans l'annexe** : chaque note peut reprendre en image la zone encadrée, à
   sa taille d'origine, redressée si le cadre est pivoté, tronquée par le bas au-delà d'une
-  hauteur réglable. Un écran d'aide montre le rendu avec et sans copie.
+  hauteur réglable. Le rendu est calculé à 288 points par pouce, la surface totale étant bornée
+  pour les très grands cadres. Un écran d'aide montre le rendu avec et sans copie.
 - **Brouillon de commentaire** conservé si la fenêtre de saisie est fermée par un clic à côté,
   et restitué à la saisie suivante. Valider et Annuler l'effacent tous deux.
 - Disposition adaptative : sur mobile, la bibliothèque et l'inspecteur deviennent des tiroirs,

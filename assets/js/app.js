@@ -19,7 +19,7 @@ const bind = (ids, fn)=> ids.forEach(id=>{ const el=$(id); if(el) el.onclick = f
 
 let toastT;
 let deferredPrompt = null;   // requête d'installation PWA, captée plus bas
-const APP_VERSION = 'v17';
+const APP_VERSION = 'v18';
 /* Saisie flottante des commentaires : fonction en cours de mise au point,
    désactivée par défaut. */
 const BETA_CMT = ()=> localStorage.getItem('pdfed.beta') === '1';
@@ -277,13 +277,16 @@ function showSettingsModal(){
         <button id="setShotHelp" style="flex:0 0 44px">?</button></div>
       <label class="f">${esc(t('insp.suffix'))}</label>
       <input type="text" id="setSuffix" value="${esc(SUFFIX())}" spellcheck="false">
-      <div class="row" style="margin-top:12px"><button id="setFs">${esc(t('nav.fullscreen'))}</button></div>
+      <div class="row" style="margin-top:12px">
+        <button id="setFs">${esc(t('nav.fullscreen'))}</button>
+        <button id="setUpd">${esc(t('nav.update'))}</button>
+      </div>
       <div class="row" style="margin-top:6px"><button id="setHelp">${esc(t('nav.help'))}</button></div>
       <div class="row" style="margin-top:6px${deferredPrompt?'':';display:none'}">
         <button id="setInstall" class="primary">${esc(t('nav.install'))}</button></div>
     </div>
     <div class="foot"><button class="primary" id="setDone">${esc(t('m.close'))}</button></div>`);
-  $('#setDone').onclick = ()=>{ closeModal(); drawer('#paneInsp', false); };
+  $('#setDone').onclick = ()=>{ closeModal(); togglePane('insp', false); };
   $$('#themeSeg button').forEach(b=> b.onclick = ()=>applyTheme(b.dataset.t));
   $('#setBeta').onchange = e=> localStorage.setItem('pdfed.beta', e.target.checked ? '1' : '0');
   $('#setNote').onchange   = e=> localStorage.setItem('pdfed.note', e.target.checked ? '1' : '0');
@@ -295,7 +298,8 @@ function showSettingsModal(){
   $('#setSuffix').onchange = e=>
     localStorage.setItem('pdfed.suffix', e.target.value.replace(/[\\/:*?"<>|]/g,''));
   $('#setLangBtn').onclick = showLangModal;
-  $('#setFs').onclick = toggleFullscreen;
+  $('#setFs').onclick  = toggleFullscreen;
+  $('#setUpd').onclick = forceUpdate;
   $('#setHelp').onclick = ()=>showSplash(false);
   $('#setInstall').onclick = doInstall;
 }
@@ -328,10 +332,20 @@ function drawer(sel, open){
   el.classList.toggle('open', willOpen);
   $('#scrim').classList.toggle('on', willOpen && isSmall());
 }
-$('#btnLib').onclick    = ()=>drawer('#paneLib');
-$('#btnInsp').onclick   = ()=>drawer('#paneInsp');
-$('#closeLib').onclick  = ()=>drawer('#paneLib', false);
-$('#closeInsp').onclick = ()=>drawer('#paneInsp', false);
+/* Sur ordinateur les panneaux sont des colonnes : les replier rend la place au
+   document. Sur mobile ce sont des tiroirs, et le comportement ne change pas. */
+function togglePane(which, open){
+  const cls = which === 'lib' ? 'no-lib' : 'no-insp';
+  if(isSmall()){ drawer(which === 'lib' ? '#paneLib' : '#paneInsp', open); return; }
+  const hidden = document.body.classList.contains(cls);
+  const show = open === undefined ? hidden : open;
+  document.body.classList.toggle(cls, !show);
+  if(Doc.pdf && Doc.autoFit) setTimeout(fitPage, 60);
+}
+$('#btnLib').onclick    = ()=>togglePane('lib');
+$('#btnInsp').onclick   = ()=>togglePane('insp');
+$('#closeLib').onclick  = ()=>togglePane('lib', false);
+$('#closeInsp').onclick = ()=>togglePane('insp', false);
 $('#scrim').onclick     = ()=>{ $$('aside').forEach(a=>a.classList.remove('open')); $('#scrim').classList.remove('on'); };
 
 /* ---------------------------------------------------------------------
@@ -1114,6 +1128,9 @@ function setScale(s){
 }
 function goPage(n){
   if(!Doc.pdf) return;
+  /* pendant une saisie flottante, le document se déplace et se zoome, mais
+     ne change pas de page : le cadre en cours ne doit pas disparaître */
+  if(composing) return;
   n = clamp(n,1,Doc.total);
   if(n===Doc.page){ $('#pNum').value = Doc.page; return; }
   Doc.page=n; Doc.sel=null;
@@ -1639,6 +1656,7 @@ const CMT_COLOR = '#cc2a2e';
 let composing = null;
 function openComposer(it, isNew){
   composing = {it, isNew};
+  document.body.classList.add('composing');
   const box = $('#composer');
   $('#cpShotLbl').textContent = t('insp.shotHere');
   $('#cpShot').checked = !!it.shot;
@@ -1653,7 +1671,11 @@ function openComposer(it, isNew){
   keepCaret($('#cpTxt'), ['#cpShot', '.cp-sw']);
   edCaretEnd('cpTxt');
 }
-function closeComposer(){ composing = null; $('#composer').hidden = true; }
+function closeComposer(){
+  composing = null;
+  $('#composer').hidden = true;
+  document.body.classList.remove('composing');
+}
 function composerValues(){
   return {text: edGet('cpTxt').trim(), color: $('#cpCol').value, shot: $('#cpShot').checked};
 }
@@ -2225,7 +2247,11 @@ async function pageCanvas(n, k){
   return shotCache.get(key);
 }
 async function shotOf(it, maxHpt){
-  const k = 2;                                   // deux fois la définition, pour rester net
+  /* 144 ppp donnaient un rendu visiblement plus mou que le texte vectoriel
+     voisin ; on quadruple, en bornant la surface pour ne pas exploser la
+     mémoire sur les très grands cadres. */
+  const area = Math.max(1, it.w * Math.min(it.h, maxHpt));
+  const k = clamp(Math.floor(Math.sqrt(9e6 / area)), 2, 4);
   const src = await pageCanvas(it.page, k);
   const hh  = Math.min(it.h, maxHpt);            // troncature par le bas
   const cv  = document.createElement('canvas');
@@ -2528,6 +2554,25 @@ function showSplash(firstRun){
    ------------------------------------------------------------------ */
 /* Sur iPhone, l'API plein écran n'existe pas pour autre chose qu'une vidéo :
    seul un ajout à l'écran d'accueil supprime le cadre du navigateur. */
+/* Force la recherche d'une nouvelle version : le service worker garde la
+   précédente tant qu'aucun contrôle n'est demandé. */
+async function forceUpdate(){
+  toast(t('t.updating'));
+  try{
+    const reg = await navigator.serviceWorker.getRegistration();
+    if(!reg){ location.reload(); return; }
+    await reg.update();
+    const waiting = reg.waiting || reg.installing;
+    if(waiting){
+      waiting.postMessage('skipWaiting');
+      waiting.addEventListener('statechange', ()=>{ if(waiting.state === 'activated') location.reload(); });
+      setTimeout(()=>location.reload(), 1500);
+    } else {
+      toast(t('t.upToDate'),'ok');
+    }
+  }catch(err){ console.warn(err.message); location.reload(); }
+}
+
 async function toggleFullscreen(){
   const el = document.documentElement;
   try{
