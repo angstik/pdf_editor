@@ -109,16 +109,21 @@
 </main>
 
 <!-- Saisie flottante : panneau non modal, le document reste manipulable derrière -->
+<!-- Saisie flottante : panneau non modal, sans aucun champ de formulaire.
+     iOS impose sa barre d'accessoires dès qu'un input ou un textarea existe et
+     prend le focus ; ici tout est bouton ou élément éditable. -->
 <div id="composer" hidden>
   <div class="cp-row">
-    <label class="cp-sw"><i></i><input type="color" id="cpCol" tabindex="-1"></label>
-    <label class="cp-chk"><input type="checkbox" id="cpShot" tabindex="-1"><span id="cpShotLbl"></span></label>
+    <button id="cpCol" class="cp-sw" tabindex="-1" aria-label=""><i></i></button>
+    <button id="cpShot" class="cp-chk" tabindex="-1" aria-pressed="false">
+      <b class="tick">✓</b><span id="cpShotLbl"></span></button>
     <span class="spacer"></span>
-    <button id="cpOk" class="icon" tabindex="-1">✅</button>
-    <button id="cpNo" class="icon" tabindex="-1">❌</button>
     <button id="cpSet" class="icon" tabindex="-1">⚙</button>
+    <button id="cpNo" class="icon" tabindex="-1">❌</button>
+    <button id="cpOk" class="icon" tabindex="-1">✅</button>
   </div>
   <div id="cpTxt" class="edit" contenteditable="plaintext-only" role="textbox" aria-multiline="true"></div>
+  <div id="cpPal" class="cp-pal" hidden></div>
 </div>
 <div id="scrim"></div>
 <div class="mask" id="mask"><div class="modal" id="modal" role="dialog" aria-modal="true"></div></div>

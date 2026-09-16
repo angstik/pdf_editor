@@ -45,6 +45,9 @@ html,body{height:100%;margin:0;overscroll-behavior:none}
 /* dvh suit la barre d'outils rétractable des navigateurs mobiles : sans lui,
    le mode paysage laisse le bas de l'application sous les menus du navigateur */
 @supports (height:100dvh){ html,body{height:100dvh} }
+/* --vvh est posé par le script d'après window.visualViewport : c'est la seule
+   mesure fiable quand le clavier logiciel est déployé. */
+html,body{height:var(--vvh, 100%)}
 body{
   background:var(--chrome);color:var(--text);font-family:var(--font);font-size:13px;
   display:grid;grid-template-rows:auto auto 1fr;overflow:hidden;
@@ -343,13 +346,18 @@ button.rel.has .dot{display:block}
 #composer .edit{flex:1 1 auto;min-height:72px;max-height:26vh;margin:0;
   padding:7px 8px 6px;overflow-y:auto}
 #composer .edit br:last-child{display:none}
-.cp-sw{position:relative;width:34px;height:26px;border-radius:var(--r);flex:0 0 auto;
-  border:1px solid var(--line);overflow:hidden;cursor:pointer}
-.cp-sw i{position:absolute;inset:0;background:var(--c,#cc2a2e)}
-.cp-sw input{position:absolute;inset:0;width:100%;height:100%;opacity:0;border:0;padding:0}
-.cp-chk{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);
-  min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
-.cp-chk input{accent-color:var(--ink)}
+#composer .cp-sw{position:relative;width:40px;min-height:30px;padding:0;flex:0 0 auto;overflow:hidden}
+.cp-sw i{position:absolute;inset:2px;border-radius:3px;background:var(--c,#cc2a2e)}
+#composer .cp-chk{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);
+  min-width:0;overflow:hidden;white-space:nowrap;padding:5px 8px;min-height:30px;width:auto}
+#composer .cp-chk .tick{opacity:.25;font-size:13px}
+#composer .cp-chk.on{color:var(--ink);border-color:var(--ink)}
+#composer .cp-chk.on .tick{opacity:1}
+/* palette maison : évite le sélecteur natif, donc un champ de formulaire de plus */
+.cp-pal{display:flex;gap:7px;flex-wrap:wrap;padding:6px 2px 0}
+.cp-pal[hidden]{display:none}
+.cp-pal button{width:26px;height:26px;min-height:26px;padding:0;border-radius:50%}
+.cp-pal button.on{outline:2px solid var(--ink);outline-offset:2px}
 #composer .cp-row button{width:38px;min-height:32px;font-size:16px;padding:0;flex:0 0 auto}
 @media (max-height:520px) and (orientation:landscape){
   #composer{bottom:6px}

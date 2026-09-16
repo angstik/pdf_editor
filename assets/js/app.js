@@ -19,7 +19,7 @@ const bind = (ids, fn)=> ids.forEach(id=>{ const el=$(id); if(el) el.onclick = f
 
 let toastT;
 let deferredPrompt = null;   // requête d'installation PWA, captée plus bas
-const APP_VERSION = 'v18';
+const APP_VERSION = 'v19';
 /* Saisie flottante des commentaires : fonction en cours de mise au point,
    désactivée par défaut. */
 const BETA_CMT = ()=> localStorage.getItem('pdfed.beta') === '1';
@@ -83,8 +83,9 @@ function edCaretEnd(id){
   sel.removeAllRanges(); sel.addRange(r);
 }
 
-function keepCaret(field, selectors){
+function keepCaret(field, selectors, root){
   if(!field) return;
+  root = root || $('#modal');
   const editable = field.isContentEditable;
   let saved = null;
   const snapCaret = ()=>{
@@ -105,7 +106,7 @@ function keepCaret(field, selectors){
     }, 0);
   };
   for(const sel of selectors){
-    $$(sel, $('#modal')).forEach(el=>{
+    $$(sel, root).forEach(el=>{
       el.addEventListener('pointerdown', ev=>{
         if(el.tagName === 'BUTTON'){ ev.preventDefault(); }   // le clic suit malgré tout
         else restore();
@@ -1657,39 +1658,62 @@ let composing = null;
 function openComposer(it, isNew){
   composing = {it, isNew};
   document.body.classList.add('composing');
-  const box = $('#composer');
+  setMode(null);            // le tracé est terminé : plus de nouveau rectangle
   $('#cpShotLbl').textContent = t('insp.shotHere');
-  $('#cpShot').checked = !!it.shot;
-  $('#cpCol').value = it.color;
-  $('.cp-sw', box).style.setProperty('--c', it.color);
+  cpSetShot(!!it.shot);
+  cpSetColor(it.color, false);
   $('#cpOk').title  = t('m.ok');
   $('#cpNo').title  = t('m.cancel');
   $('#cpSet').title = t('nav.settings');
+  $('#cpCol').setAttribute('aria-label', t('insp.color'));
   $('#cpTxt').dataset.ph = t('m.commentPh');
+  $('#cpPal').hidden = true;
   edSet('cpTxt', it.text || '');
-  box.hidden = false;
-  keepCaret($('#cpTxt'), ['#cpShot', '.cp-sw']);
+  $('#composer').hidden = false;
+  keepCaret($('#cpTxt'), ['#cpShot', '#cpCol', '#cpPal button'], $('#composer'));
   edCaretEnd('cpTxt');
 }
 function closeComposer(){
   composing = null;
   $('#composer').hidden = true;
+  $('#cpPal').hidden = true;
   document.body.classList.remove('composing');
 }
-function composerValues(){
-  return {text: edGet('cpTxt').trim(), color: $('#cpCol').value, shot: $('#cpShot').checked};
+function cpSetShot(on){
+  $('#cpShot').classList.toggle('on', on);
+  $('#cpShot').setAttribute('aria-pressed', on ? 'true' : 'false');
+  if(composing) composing.it.shot = on;
 }
-$('#cpCol').oninput = e=>{
-  $('.cp-sw').style.setProperty('--c', e.target.value);
+function cpSetColor(c, commit){
+  $('#cpCol').style.setProperty('--c', c);
+  $$('#cpPal button').forEach(b => b.classList.toggle('on', b.dataset.c.toLowerCase() === c.toLowerCase()));
   if(composing){
-    composing.it.color = e.target.value;
+    composing.it.color = c;
     const el = $(`.item[data-id="${composing.it.id}"]`);
-    if(el) el.style.setProperty('--cc', e.target.value);
+    if(el) el.style.setProperty('--cc', c);
   }
+  if(commit){
+    pushRecent('cmt', c);
+    localStorage.setItem('pdfed.cmt.color', c);
+  }
+}
+$('#cpShot').onclick = ()=>{ cpSetShot(!$('#cpShot').classList.contains('on')); };
+$('#cpCol').onclick = ()=>{
+  const pal = $('#cpPal');
+  if(!pal.hidden){ pal.hidden = true; return; }
+  const cur = composing ? composing.it.color : CMT_COLOR;
+  pal.innerHTML = paletteFor('cmt', cur).map(c =>
+    `<button type="button" tabindex="-1" data-c="${c}" style="background:${c}"
+      class="${c.toLowerCase() === cur.toLowerCase() ? 'on' : ''}" aria-label="${c}"></button>`).join('');
+  $$('#cpPal button').forEach(b => b.onclick = ()=>{ cpSetColor(b.dataset.c, true); pal.hidden = true; });
+  keepCaret($('#cpTxt'), ['#cpPal button'], $('#composer'));
+  pal.hidden = false;
 };
-$('#cpCol').onchange = e=>{ pushRecent('cmt', e.target.value);
-  localStorage.setItem('pdfed.cmt.color', e.target.value); };
-$('#cpShot').onchange = e=>{ if(composing) composing.it.shot = e.target.checked; };
+function composerValues(){
+  return {text: edGet('cpTxt').trim(),
+          color: composing ? composing.it.color : CMT_COLOR,
+          shot: $('#cpShot').classList.contains('on')};
+}
 $('#cpOk').onclick = ()=>{
   if(!composing) return;
   const {it, isNew} = composing, v = composerValues();
@@ -1697,13 +1721,13 @@ $('#cpOk').onclick = ()=>{
   snapshot();
   Object.assign(it, v);
   it.author = localStorage.getItem('pdfed.author') || it.author || '';
-  closeComposer(); setMode(null); drawItems();
+  closeComposer(); drawItems();
   if(isNew) toast(t('t.cmtAdded'),'ok');
 };
 $('#cpNo').onclick = ()=>{
   if(!composing) return;
   const {it, isNew} = composing;
-  closeComposer(); setMode(null);
+  closeComposer();
   if(isNew){ Doc.items = Doc.items.filter(x => x.id !== it.id); Doc.sel = null; }
   drawItems();
 };
@@ -2625,6 +2649,23 @@ addEventListener('resize', ()=>{
   clearTimeout(Doc.rt);
   Doc.rt = setTimeout(()=>{ Doc.autoFit ? fitPage() : drawItems(); }, 180);
 });
+
+/* À l'ouverture du clavier, iOS réduit le viewport visuel sans toucher au
+   viewport de mise en page et fait défiler la page : le haut de l'application
+   passe alors hors de l'écran et n'en revient plus. On cale donc la hauteur
+   sur le viewport visuel et on ramène le défilement de la page à zéro. */
+if(window.visualViewport){
+  const vv = window.visualViewport;
+  const fit = ()=>{
+    document.documentElement.style.setProperty('--vvh', Math.round(vv.height) + 'px');
+    if(window.scrollY || window.scrollX) window.scrollTo(0, 0);
+    if(Doc.pdf && Doc.autoFit){ clearTimeout(Doc.rt); Doc.rt = setTimeout(fitPage, 220); }
+  };
+  vv.addEventListener('resize', fit);
+  vv.addEventListener('scroll', fit);
+  addEventListener('focusin', ()=>setTimeout(fit, 60));
+  fit();
+}
 
 applyI18n();
 updateFlag();

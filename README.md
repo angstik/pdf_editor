@@ -241,6 +241,17 @@ numéro **dessinés dans le contenu**, un `/Link` couvrant la zone et un second 
 tous deux vers la note en annexe, un `/Link` de retour depuis l'annexe, et une note `/Text`
 isolée dans la marge qui porte le texte pour les lecteurs sachant ouvrir une bulle.
 
+**Barre d'accessoires d'iOS.** Elle s'affiche dès qu'un champ de formulaire prend le focus, et
+`tabindex="-1"` ne fait que retirer l'élément du parcours de tabulation. Le seul levier réel est
+de n'avoir aucun `input`, `textarea` ni `select` dans le panneau : la couleur passe par une
+palette maison ouverte au clic, la coche est un bouton à deux états, et la saisie est un élément
+éditable.
+
+**Clavier logiciel et hauteur utile.** À son ouverture, iOS réduit le viewport visuel sans
+toucher au viewport de mise en page et fait défiler la page, ce qui sort le haut de l'application
+de l'écran sans retour possible. La hauteur est donc calée sur `window.visualViewport`, exposée
+en variable `--vvh`, et le défilement de la page est ramené à zéro à chaque changement.
+
 **Champ de saisie du commentaire.** Un élément `contenteditable="plaintext-only"` remplace la
 zone de texte : iOS impose au-dessus du clavier une barre d'accessoires dès qu'un champ de
 formulaire prend le focus, ce qu'un élément éditable ne déclenche pas. La lecture se fait par
