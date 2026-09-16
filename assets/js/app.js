@@ -19,39 +19,10 @@ const bind = (ids, fn)=> ids.forEach(id=>{ const el=$(id); if(el) el.onclick = f
 
 let toastT;
 let deferredPrompt = null;   // requête d'installation PWA, captée plus bas
-const APP_VERSION = 'v16';
-/* Position de la barre d'outils : en haut, ou en colonne à gauche ou à droite. */
-const TB_POS = ['top','left','right'];
-const tbPos = ()=> TB_POS.includes(localStorage.getItem('pdfed.tb')) ? localStorage.getItem('pdfed.tb') : 'top';
-const isLandscape = ()=> matchMedia('(orientation: landscape)').matches;
-/* La colonne latérale n'a de sens qu'en paysage : en portrait elle mange une
-   largeur déjà rare, et la préférence est simplement mise en sommeil. */
-function syncToolbar(){
-  const pos = tbPos(), side = pos !== 'top' && isLandscape();
-  document.body.classList.toggle('tb-side',  side);
-  document.body.classList.toggle('tb-left',  side && pos === 'left');
-  document.body.classList.toggle('tb-right', side && pos === 'right');
-  /* En colonne, la navigation et l'historique remontent dans la barre du haut :
-     la colonne ne garde que les outils d'ajout, et reste étroite. */
-  const slot = $('#headSlot'), bar = $('.toolbar');
-  const nav = $('#grpNav'), hist = $('#grpHist'), sep = $('#sepTools');
-  if(side){
-    if(nav.parentElement !== slot){ slot.append(nav, hist); }
-    sep.hidden = true;
-  } else {
-    if(nav.parentElement === slot){
-      bar.prepend(nav);
-      bar.insertBefore(hist, sep);
-    }
-    sep.hidden = false;
-  }
-}
-function applyToolbar(pos){
-  if(!TB_POS.includes(pos)) pos = 'top';
-  localStorage.setItem('pdfed.tb', pos);
-  syncToolbar();
-  if(Doc.pdf && Doc.autoFit) setTimeout(fitPage, 80);
-}   // doit suivre CACHE_VERSION de sw.js
+const APP_VERSION = 'v17';
+/* Saisie flottante des commentaires : fonction en cours de mise au point,
+   désactivée par défaut. */
+const BETA_CMT = ()=> localStorage.getItem('pdfed.beta') === '1';
 function toast(msg, kind){
   const el=$('#toast'); el.textContent=msg;
   el.style.borderLeftColor = kind==='err'?'var(--stamp)':kind==='ok'?'var(--ok)':'var(--ink)';
@@ -102,11 +73,36 @@ function swatchHtml(id, color, disabled, kind='text'){
 /* Empêche les contrôles annexes de dérober le focus de la zone de saisie.
    Les boutons gardent leur clic ; seul le transfert de focus est annulé, et
    la sélection est restaurée pour les cases à cocher, qui l'exigent. */
+/* iOS impose au-dessus du clavier une barre d'accessoires dès qu'un champ de
+   formulaire a le focus. Un élément éditable ne déclenche pas cette barre. */
+const edGet = id => ((el=>el && (el.innerText ?? el.textContent))($('#'+id)) || '').replace(/\u00a0/g,' ').replace(/\n$/,'');
+const edSet = (id, v) => { $('#'+id).textContent = v || ''; };
+function edCaretEnd(id){
+  const el = $('#'+id), r = document.createRange(), sel = getSelection();
+  el.focus(); r.selectNodeContents(el); r.collapse(false);
+  sel.removeAllRanges(); sel.addRange(r);
+}
+
 function keepCaret(field, selectors){
   if(!field) return;
+  const editable = field.isContentEditable;
+  let saved = null;
+  const snapCaret = ()=>{
+    if(editable){
+      const sel = getSelection();
+      saved = sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
+    } else saved = [field.selectionStart, field.selectionEnd];
+  };
   const restore = ()=>{
-    const a = field.selectionStart, b = field.selectionEnd;
-    setTimeout(()=>{ field.focus(); try{ field.setSelectionRange(a, b); }catch(e){} }, 0);
+    snapCaret();
+    setTimeout(()=>{
+      field.focus();
+      try{
+        if(editable){
+          if(saved){ const sel = getSelection(); sel.removeAllRanges(); sel.addRange(saved); }
+        } else field.setSelectionRange(saved[0], saved[1]);
+      }catch(e){}
+    }, 0);
   };
   for(const sel of selectors){
     $$(sel, $('#modal')).forEach(el=>{
@@ -272,10 +268,7 @@ function showSettingsModal(){
       <label class="f">${esc(t('nav.language'))}</label>
       <div class="row"><button id="setLangBtn" style="justify-content:flex-start;gap:8px">
         ${flagSvg(LANG)}<span>${esc((LANGS.find(l=>l.code===LANG)||{}).label||LANG)}</span></button></div>
-      <label class="f">${esc(t('insp.toolbarPos'))}</label>
-      <div class="seg" id="tbSeg">
-        ${TB_POS.map(p=>`<button data-p="${p}" class="${p===tbPos()?'on':''}">${esc(t('pos.'+p))}</button>`).join('')}
-      </div>
+      <label class="f"><input type="checkbox" id="setBeta" ${BETA_CMT()?'checked':''}>${esc(t('insp.beta'))}</label>
       <label class="f"><input type="checkbox" id="setNote" ${NOTE_ON()?'checked':''}>${esc(t('insp.marginNote'))}</label>
       <label class="f"><input type="checkbox" id="setAnnex1" ${ANNEX_1ST()?'checked':''}>${esc(t('insp.annexFirst'))}</label>
       <label class="f"><input type="checkbox" id="setShot" ${SHOT_ON()?'checked':''}>${esc(t('insp.shot'))}</label>
@@ -292,7 +285,7 @@ function showSettingsModal(){
     <div class="foot"><button class="primary" id="setDone">${esc(t('m.close'))}</button></div>`);
   $('#setDone').onclick = ()=>{ closeModal(); drawer('#paneInsp', false); };
   $$('#themeSeg button').forEach(b=> b.onclick = ()=>applyTheme(b.dataset.t));
-  $$('#tbSeg button').forEach(b=> b.onclick = ()=>{ applyToolbar(b.dataset.p); showSettingsModal(); });
+  $('#setBeta').onchange = e=> localStorage.setItem('pdfed.beta', e.target.checked ? '1' : '0');
   $('#setNote').onchange   = e=> localStorage.setItem('pdfed.note', e.target.checked ? '1' : '0');
   $('#setAnnex1').onchange = e=> localStorage.setItem('pdfed.annexFirst', e.target.checked ? '1' : '0');
   $('#setShot').onchange   = e=> localStorage.setItem('pdfed.shot', e.target.checked ? '1' : '0');
@@ -991,7 +984,7 @@ function doCloseDoc(){
   Object.assign(Doc, {pdf:null, bytes:null, name:'', page:1, total:0,
     items:[], sel:null, undo:[], redo:[], viewport:null, autoFit:true, cmtOffset:0, dirty:false});
   Doc.vp1.clear(); Doc.rot.clear(); Doc.text.clear(); shotCache.clear();
-  setMode(null);
+  setMode(null); closeComposer();
   $('#stage').hidden = true; $('#hint').hidden = false; $('#btnClose').hidden = true;
   setDocName(''); $('#docName').classList.remove('full');
   $('#pTot').textContent = '/ –'; $('#pNum').value = '–'; $('#zLbl').textContent = '100%';
@@ -1491,7 +1484,10 @@ $('#layer').addEventListener('dblclick', e=>{
   const host = e.target.closest('.item');
   if(host && !e.target.dataset.h){
     const c = Doc.items.find(i=>i.id===host.dataset.id);
-    if(c && c.type==='comment' && !c.locked){ e.preventDefault(); return editComment(c, false); }
+    if(c && c.type==='comment' && !c.locked){
+      e.preventDefault();
+      return BETA_CMT() ? openComposer(c, false) : editComment(c, false);
+    }
   }
   if(e.target.dataset.h !== 'rot') return;
   const it = Doc.items.find(i=>i.id === e.target.closest('.item').dataset.id);
@@ -1632,6 +1628,71 @@ async function addHighlights(sel){
   drawItems();
 }
 const CMT_COLOR = '#cc2a2e';
+/* ---------------------------------------------------------------------
+   Saisie flottante (bêta)
+
+   Panneau non modal : pas de fond assombri, pas de capture d'événements, le
+   document reste défilable et zoomable pendant la saisie, et le cadre du
+   commentaire peut être déplacé. Le panneau ne se referme que par l'un de ses
+   trois boutons : valider, abandonner, ou basculer vers la fenêtre complète.
+   ------------------------------------------------------------------ */
+let composing = null;
+function openComposer(it, isNew){
+  composing = {it, isNew};
+  const box = $('#composer');
+  $('#cpShotLbl').textContent = t('insp.shotHere');
+  $('#cpShot').checked = !!it.shot;
+  $('#cpCol').value = it.color;
+  $('.cp-sw', box).style.setProperty('--c', it.color);
+  $('#cpOk').title  = t('m.ok');
+  $('#cpNo').title  = t('m.cancel');
+  $('#cpSet').title = t('nav.settings');
+  $('#cpTxt').dataset.ph = t('m.commentPh');
+  edSet('cpTxt', it.text || '');
+  box.hidden = false;
+  keepCaret($('#cpTxt'), ['#cpShot', '.cp-sw']);
+  edCaretEnd('cpTxt');
+}
+function closeComposer(){ composing = null; $('#composer').hidden = true; }
+function composerValues(){
+  return {text: edGet('cpTxt').trim(), color: $('#cpCol').value, shot: $('#cpShot').checked};
+}
+$('#cpCol').oninput = e=>{
+  $('.cp-sw').style.setProperty('--c', e.target.value);
+  if(composing){
+    composing.it.color = e.target.value;
+    const el = $(`.item[data-id="${composing.it.id}"]`);
+    if(el) el.style.setProperty('--cc', e.target.value);
+  }
+};
+$('#cpCol').onchange = e=>{ pushRecent('cmt', e.target.value);
+  localStorage.setItem('pdfed.cmt.color', e.target.value); };
+$('#cpShot').onchange = e=>{ if(composing) composing.it.shot = e.target.checked; };
+$('#cpOk').onclick = ()=>{
+  if(!composing) return;
+  const {it, isNew} = composing, v = composerValues();
+  if(isNew && !v.text){ return $('#cpNo').click(); }
+  snapshot();
+  Object.assign(it, v);
+  it.author = localStorage.getItem('pdfed.author') || it.author || '';
+  closeComposer(); setMode(null); drawItems();
+  if(isNew) toast(t('t.cmtAdded'),'ok');
+};
+$('#cpNo').onclick = ()=>{
+  if(!composing) return;
+  const {it, isNew} = composing;
+  closeComposer(); setMode(null);
+  if(isNew){ Doc.items = Doc.items.filter(x => x.id !== it.id); Doc.sel = null; }
+  drawItems();
+};
+$('#cpSet').onclick = ()=>{
+  if(!composing) return;
+  const {it, isNew} = composing;
+  Object.assign(it, composerValues());
+  closeComposer();
+  editComment(it, isNew && !Doc.items.some(x => x.id === it.id));
+};
+
 function addComment(r){
   const it = {id:uid(), page:Doc.page, type:'comment',
     x:r.x, y:r.y, w:Math.max(20,r.w), h:Math.max(14,r.h), rot:0,
@@ -1639,6 +1700,14 @@ function addComment(r){
     shot: SHOT_ON(),                 // coche initialisée par le réglage général
     author: localStorage.getItem('pdfed.author') || '',
     text:'', opacity:1, locked:false};
+  if(BETA_CMT()){
+    /* le cadre est posé tout de suite : on le voit et on peut le déplacer
+       pendant la saisie, le panneau ne masquant presque rien */
+    snapshot();
+    Doc.items.push(it); Doc.sel = it.id; drawItems();
+    openComposer(it, true);
+    return;
+  }
   editComment(it, true);
 }
 /* Saisie du texte. À la création, un commentaire vide est simplement abandonné. */
@@ -1665,7 +1734,7 @@ function editComment(it, isNew){
   };
   const stash = ()=>{
     if(!isNew) return;
-    const txt = $('#cTxt') ? $('#cTxt').value.trim() : '';
+    const txt = $('#cTxt') ? edGet('cTxt').trim() : '';
     if(txt) localStorage.setItem(DRAFT, JSON.stringify({
       text: txt, author: $('#cAuth') ? $('#cAuth').value.trim() : '', color: it.color
     }));
@@ -1681,13 +1750,16 @@ function editComment(it, isNew){
     <label class="f">${esc(t('insp.author'))}</label>
     <input type="text" id="cAuth" value="${esc(it.author||'')}" autocomplete="name">
     <label class="f">${esc(t('insp.commentText'))}</label>
-    <textarea id="cTxt" rows="5" placeholder="${esc(t('m.commentPh'))}">${esc(it.text||'')}</textarea>
+    <div id="cTxt" class="edit" contenteditable="plaintext-only" role="textbox"
+         aria-multiline="true" data-ph="${esc(t('m.commentPh'))}"></div>
     <label class="f"><input type="checkbox" id="cShot" ${it.shot ? 'checked' : ''}>${esc(t('insp.shotHere'))}</label>
     <div class="compact">
       <label class="f">${esc(t('insp.color'))}</label>
       ${swatchHtml('cCol', it.color, false, 'cmt')}
     </div>
-    <div class="foot"><button id="cCancel">${esc(t('m.cancel'))}</button>
+    <div class="foot">
+      <button id="cSwitch" class="left" title="${esc(t('m.toComposer'))}">⤢</button>
+      <button id="cCancel">${esc(t('m.cancel'))}</button>
       <button class="primary" id="cOk">${esc(t('m.ok'))}</button></div>`);
   /* Annuler est une décision explicite : le brouillon est abandonné. */
   $('#cCancel').onclick = ()=>{
@@ -1698,11 +1770,21 @@ function editComment(it, isNew){
   bindSwatch('cCol', v=>{ color = v; }, 'cmt');
   /* Choisir une couleur ou cocher la reproduction ne doit pas sortir le curseur
      du texte : le focus et la sélection sont rendus tels quels. */
+  edSet('cTxt', it.text || '');
   keepCaret($('#cTxt'), ['#cCol-p button', '#cShot', '.swatch']);
   $('#cShot').onchange = e=>{ shot = e.target.checked; };
-  $('#cTxt').focus();
+  $('#cSwitch').onclick = ()=>{
+    it.text = edGet('cTxt'); it.color = color; it.shot = shot;
+    it.author = $('#cAuth').value.trim();
+    settled = true; closeModal();
+    if(isNew && !Doc.items.some(x => x.id === it.id)){
+      snapshot(); Doc.items.push(it); Doc.sel = it.id; drawItems();
+    }
+    openComposer(it, isNew);
+  };
+  edCaretEnd('cTxt');
   $('#cOk').onclick = ()=>{
-    const txt = $('#cTxt').value.trim();
+    const txt = edGet('cTxt').trim();
     settled = true;
     if(isNew && !txt){ draftClear(); setMode(null); closeModal(); toast(t('t.cmtEmpty')); return; }
     if(isNew) draftClear();
@@ -2072,14 +2154,16 @@ async function clipComments(){
   const list = commentsInOrder();
   if(!list.length) return;
   const n = i => Doc.cmtOffset + i + 1;
+  const RULE = '_'.repeat(20);
   const plain = list.map((it,i)=>
-    `${n(i)}. ${t('exp.page')} ${it.page}${it.author ? ' · ' + it.author : ''}\n${it.text || ''}`
+    `${n(i)}. ${t('exp.page')} ${it.page}${it.author ? ' · ' + it.author : ''}\n${it.text || ''}\n${RULE}`
   ).join('\n\n');
   let html = `<div style="font-family:sans-serif"><h3>${esc(t('exp.annexTitle'))} — ${esc(Doc.name)}</h3>`;
   const maxH = 842 * SHOT_MAX() / 100;
   for(let i = 0; i < list.length; i++){
     const it = list[i];
-    html += `<p style="margin:14px 0 4px"><b style="color:${esc(it.color)}">${n(i)}.</b> `
+    html += `<p style="margin:14px 0 4px;text-decoration:underline">`
+         +  `<b style="color:${esc(it.color)}">${n(i)}.</b> `
          +  `${esc(t('exp.page'))} ${it.page}${it.author ? ' · ' + esc(it.author) : ''}</p>`;
     if((it.shot === undefined ? SHOT_ON() : it.shot) && Doc.pdf){
       try{
@@ -2088,6 +2172,7 @@ async function clipComments(){
       }catch(err){ console.warn('vignette:', err.message); }
     }
     html += `<div style="white-space:pre-wrap">${esc(it.text || '')}</div>`;
+    html += `<div style="color:#888;font-family:monospace">${RULE}</div>`;
   }
   html += '</div>';
   try{
@@ -2252,13 +2337,16 @@ async function buildComments(out, pages, getFont){
   for(let i = 0; i < list.length; i++){
     const it = list[i], sh = shots[i] || null;
     const lines = wrapPdf(it.text || '', reg, 10, TW);
-    const need  = 34 + (sh ? sh.h + 10 : 0) + lines.length*14 + 34;
+    const need  = 34 + (sh ? sh.h + 10 : 0) + lines.length*14 + 34 + 30;
     if(y - need < 64){ annex = newAnnex(); y = H - 104; }
     const c = hexRgb(it.color);
     annex.drawCircle({x:MA+9, y:y+4, size:9.5, color:c});
     annex.drawText(String(num(i)), {x:MA+6.2, y:y+.6, size:10, font:bold, color:rgb(1,1,1)});
     const titre = `${t('exp.page')} ${it.page}${it.author ? '  ·  '+it.author : ''}`;
     annex.drawText(titre, {x:MA+28, y:y, size:10.5, font:bold, color:rgb(.12,.13,.2)});
+    /* première ligne soulignée, comme dans le récapitulatif copié */
+    annex.drawLine({start:{x:MA+28, y:y-3}, end:{x:MA+28+bold.widthOfTextAtSize(titre,10.5), y:y-3},
+      thickness:.7, color:rgb(.12,.13,.2)});
     y -= 18;
     if(sh){
       y -= sh.h;
@@ -2274,7 +2362,10 @@ async function buildComments(out, pages, getFont){
       borderColor:rgb(.55,.58,.68), color:rgb(.95,.96,.98)});
     annex.drawText(t('exp.back'), {x:MA+37, y:y+2.5, size:9.5, font:reg, color:rgb(.2,.22,.32)});
     dests.push({annex, top:y+70, btn:[MA+28, y-4, MA+28+bw, y+17]});
-    y -= 40;
+    y -= 30;
+    /* séparateur de fin de commentaire */
+    annex.drawText('_'.repeat(20), {x:MA+28, y:y, size:10, font:reg, color:rgb(.6,.62,.7)});
+    y -= 18;
   }
   annex.node.set(K_Y, PDFNumber.of(Math.round(y)));   // reprise au prochain passage
 
@@ -2483,7 +2574,6 @@ if('launchQueue' in window){
    ------------------------------------------------------------------ */
 addEventListener('beforeunload', e=>{ if(Doc.items.length && Doc.dirty){ e.preventDefault(); e.returnValue=''; } });
 addEventListener('resize', ()=>{
-  syncToolbar();
   if(!isSmall()){ $$('aside').forEach(a=>a.classList.remove('open')); $('#scrim').classList.remove('on'); }
   if(!Doc.pdf) return;
   fitDocName();
@@ -2492,7 +2582,6 @@ addEventListener('resize', ()=>{
 });
 
 applyI18n();
-syncToolbar();
 updateFlag();
 $('#appVer').textContent = APP_VERSION;
 setDocName('');

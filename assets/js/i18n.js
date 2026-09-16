@@ -12,6 +12,8 @@ const I18N = {
 /* ------------------------------------------------------------------ FR */
 fr:{
 locale:'fr-FR',
+'insp.beta':"Saisie flottante des commentaires (bêta)",
+'m.toComposer':"Basculer en saisie flottante",
 'insp.shotHere':"Reproduire la source",
 'insp.clip':"Copier les commentaires dans le presse-papiers",
 't.clipDone':"Commentaires copiés dans le presse-papiers",
@@ -194,6 +196,8 @@ locale:'fr-FR',
 /* ------------------------------------------------------------------ EN */
 en:{
 locale:'en-GB',
+'insp.beta':"Floating comment entry (beta)",
+'m.toComposer':"Switch to floating entry",
 'insp.shotHere':"Reproduce the source",
 'insp.clip':"Copy the comments to the clipboard",
 't.clipDone':"Comments copied to the clipboard",
@@ -376,6 +380,8 @@ locale:'en-GB',
 /* ------------------------------------------------------------------ DE */
 de:{
 locale:'de-DE',
+'insp.beta':"Schwebende Kommentareingabe (Beta)",
+'m.toComposer':"Zur schwebenden Eingabe wechseln",
 'insp.shotHere':"Die Stelle abbilden",
 'insp.clip':"Kommentare in die Zwischenablage kopieren",
 't.clipDone':"Kommentare in die Zwischenablage kopiert",
@@ -559,6 +565,8 @@ locale:'de-DE',
 /* ------------------------------------------------------------------ ES */
 es:{
 locale:'es-ES',
+'insp.beta':"Entrada flotante de comentarios (beta)",
+'m.toComposer':"Cambiar a la entrada flotante",
 'insp.shotHere':"Reproducir el original",
 'insp.clip':"Copiar los comentarios al portapapeles",
 't.clipDone':"Comentarios copiados al portapapeles",
@@ -741,6 +749,8 @@ locale:'es-ES',
 /* ------------------------------------------------------------------ IT */
 it:{
 locale:'it-IT',
+'insp.beta':"Inserimento fluttuante dei commenti (beta)",
+'m.toComposer':"Passa all'inserimento fluttuante",
 'insp.shotHere':"Riprodurre l'originale",
 'insp.clip':"Copiare i commenti negli appunti",
 't.clipDone':"Commenti copiati negli appunti",
@@ -923,6 +933,8 @@ locale:'it-IT',
 /* ------------------------------------------------------------------ UK */
 uk:{
 locale:'uk-UA',
+'insp.beta':"Плаваюче введення коментарів (бета)",
+'m.toComposer':"Перейти до плаваючого введення",
 'insp.shotHere':"Відтворити оригінал",
 'insp.clip':"Копіювати коментарі в буфер обміну",
 't.clipDone':"Коментарі скопійовано в буфер обміну",
@@ -1105,6 +1117,8 @@ locale:'uk-UA',
 /* ------------------------------------------------------------------ CS */
 cs:{
 locale:'cs-CZ',
+'insp.beta':"Plovoucí zadávání komentářů (beta)",
+'m.toComposer':"Přepnout na plovoucí zadávání",
 'insp.shotHere':"Reprodukovat předlohu",
 'insp.clip':"Zkopírovat komentáře do schránky",
 't.clipDone':"Komentáře zkopírovány do schránky",

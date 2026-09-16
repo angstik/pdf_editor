@@ -87,17 +87,16 @@ Installable sur ordinateur et sur mobile (Android / iOS), utilisable hors ligne.
   change de page ; sinon il faut avoir atteint le bord et pousser encore. Le geste est suivi
   jusqu'au relâchement du doigt, de sorte que l'inertie du défilement ne fait jamais tourner la
   page. Au clavier, les flèches parcourent le document tant qu'aucun élément n'est sélectionné.
-- **Barre d'outils en haut, à gauche ou à droite**, au choix. La colonne latérale ne s'active
-  qu'en paysage : en portrait elle prendrait une largeur déjà rare, et la préférence est
-  simplement mise en sommeil jusqu'à la rotation suivante. En colonne, la navigation de page et
-  l'historique remontent dans la barre supérieure ; la colonne ne conserve que les outils
-  d'ajout et reste étroite. Le placement des trois blocs passe par des zones de grille nommées,
-  le placement implicite étant trop sensible à l'ordre des éléments.
 - **Assemblage de la sélection** : plusieurs PDF sont concaténés dans l'ordre choisi, les images
   deviennent des pages A4, et une sélection mixte se comporte comme on l'attend. Un PDF seul est
   chargé tel quel, sans recopie page à page qui lui ferait perdre ce que nous ne savons pas
   transporter.
 - **Double-clic sur les chevrons** : première ou dernière page.
+- **Saisie flottante des commentaires**, en option et à l'état de mise au point : un panneau non
+  modal, posé en bas de l'écran, qui ne masque presque rien. Le cadre est posé dès le tracé, le
+  document reste défilable et zoomable pendant la saisie, et le panneau ne se referme que par
+  l'un de ses trois boutons — valider, abandonner, ou basculer vers la fenêtre complète. La
+  fenêtre classique reste le comportement par défaut et porte un bouton de bascule ponctuelle.
 - **Récapitulatif dans le presse-papiers** par un bouton dédié, en texte et en HTML, vignettes
   intégrées en `data:` URI. La copie doit partir d'un geste : Safari refuse une écriture dans le
   presse-papiers qui suivrait une opération longue comme la génération du PDF, ce qui écartait
@@ -235,6 +234,12 @@ réinterprétés à chaque fois. Chaque commentaire produit donc un cadre, une t
 numéro **dessinés dans le contenu**, un `/Link` couvrant la zone et un second sur la pastille,
 tous deux vers la note en annexe, un `/Link` de retour depuis l'annexe, et une note `/Text`
 isolée dans la marge qui porte le texte pour les lecteurs sachant ouvrir une bulle.
+
+**Champ de saisie du commentaire.** Un élément `contenteditable="plaintext-only"` remplace la
+zone de texte : iOS impose au-dessus du clavier une barre d'accessoires dès qu'un champ de
+formulaire prend le focus, ce qu'un élément éditable ne déclenche pas. La lecture se fait par
+`innerText`, avec repli sur `textContent`, et le curseur est préservé par sauvegarde d'un
+intervalle de sélection lorsqu'un contrôle voisin est actionné.
 
 **Partage sur iOS.** `navigator.share({files, title})` produit deux éléments sur iOS : le fichier
 et un second document texte reprenant le titre. Seul `files` est transmis.

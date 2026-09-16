@@ -31,7 +31,6 @@
   <span class="docname" id="docName"></span>
   <button id="btnClose" class="icon ghost" data-i18n-title="nav.closeDoc" aria-label="" hidden>✕</button>
   <span class="spacer"></span>
-  <span class="grp" id="headSlot"></span>
   <button id="btnClip" class="icon ghost" data-i18n-title="insp.clip" aria-label="">📋</button>
   <button id="btnExport" class="primary hide-sm" data-i18n="nav.save"></button>
   <button id="btnExportSm" class="icon only-sm primary" data-i18n-title="nav.save" aria-label="">⬇</button>
@@ -109,6 +108,21 @@
   </aside>
 </main>
 
+<!-- Saisie flottante : panneau non modal, le document reste manipulable derrière -->
+<div id="composer" hidden>
+  <div class="cp-main">
+    <div class="cp-row">
+      <label class="cp-sw"><i></i><input type="color" id="cpCol"></label>
+      <label class="cp-chk"><input type="checkbox" id="cpShot"><span id="cpShotLbl"></span></label>
+    </div>
+    <div id="cpTxt" class="edit" contenteditable="plaintext-only" role="textbox" aria-multiline="true"></div>
+  </div>
+  <div class="cp-acts">
+    <button id="cpOk" class="icon">✅</button>
+    <button id="cpNo" class="icon">❌</button>
+    <button id="cpSet" class="icon">⚙</button>
+  </div>
+</div>
 <div id="scrim"></div>
 <div class="mask" id="mask"><div class="modal" id="modal" role="dialog" aria-modal="true"></div></div>
 <div id="toast" role="status" aria-live="polite"></div>

@@ -151,27 +151,6 @@ header{padding-top:max(8px,env(safe-area-inset-top,0px))}
 .menu button:hover{background:var(--panel-2)}
 .menu button.on{color:var(--ink);font-weight:600}
 
-/* ---------- barre d'outils latérale (paysage seulement) ----------
-   Le placement passe par des zones nommées : le placement implicite d'une
-   grille est trop sensible à l'ordre des éléments et aux enfants annexes. */
-body.tb-side{grid-template-rows:auto 1fr}
-body.tb-left{grid-template-columns:54px 1fr;
-  grid-template-areas:"head head" "bar view"}
-body.tb-right{grid-template-columns:1fr 54px;
-  grid-template-areas:"head head" "view bar"}
-body.tb-side > header{grid-area:head}
-body.tb-side > .toolbar{grid-area:bar}
-body.tb-side > main{grid-area:view;min-width:0;min-height:0}
-body.tb-side > .toolbar{width:54px;flex-direction:column;align-items:center;
-  flex-wrap:nowrap;border-bottom:0;overflow-y:auto;overflow-x:hidden;
-  padding:6px 4px;gap:6px;justify-content:flex-start}
-body.tb-left  > .toolbar{border-right:1px solid var(--line)}
-body.tb-right > .toolbar{border-left:1px solid var(--line)}
-body.tb-side .toolbar .grp{flex-direction:column;align-items:center;gap:6px}
-body.tb-side .toolbar .sep{width:26px;height:1px}
-body.tb-side .toolbar .spacer{display:none}
-body.tb-side .zlbl{display:none}
-
 /* ---------- colonnes ---------- */
 /* Trois dispositions pour la barre d'outils, obtenues en replaçant les mêmes
    éléments dans la grille du corps : au-dessus (défaut), à gauche ou à droite.
@@ -333,6 +312,41 @@ button.rel.has .dot{display:block}
 .examples figcaption{font-size:11px;color:var(--muted);margin-top:5px;text-align:center}
 .examples svg{width:100%;height:auto;border:1px solid var(--line);border-radius:6px;background:#fff}
 @media (max-width:560px){ .examples{grid-template-columns:1fr} }
+
+/* ---------- zone de saisie sans champ de formulaire ----------
+   Un élément éditable évite la barre d'accessoires que iOS impose au-dessus du
+   clavier pour les champs de formulaire. */
+.edit{min-height:74px;max-height:30vh;overflow:auto;white-space:pre-wrap;word-break:break-word;
+  background:var(--field);border:1px solid var(--line);border-radius:var(--r);
+  padding:7px 8px;line-height:1.45;-webkit-user-select:text;user-select:text}
+.edit:focus{outline:2px solid var(--ink);outline-offset:1px}
+.edit:empty::before{content:attr(data-ph);color:var(--muted);pointer-events:none}
+
+/* ---------- saisie flottante (bêta) ----------
+   Panneau non modal : ni fond assombri ni capture des événements, le document
+   reste défilable et zoomable pendant la saisie. */
+#composer{position:fixed;left:50%;transform:translateX(-50%);
+  bottom:calc(10px + env(safe-area-inset-bottom,0px));
+  width:min(560px, calc(100% - 16px));z-index:55;display:flex;gap:8px;
+  background:var(--panel);border:1px solid var(--line);border-radius:12px;
+  box-shadow:var(--shadow);padding:8px}
+#composer[hidden]{display:none}
+#composer .cp-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+#composer .cp-row{display:flex;align-items:center;gap:10px;min-width:0}
+#composer .edit{min-height:52px;max-height:22vh}
+.cp-sw{position:relative;width:34px;height:26px;border-radius:var(--r);flex:0 0 auto;
+  border:1px solid var(--line);overflow:hidden;cursor:pointer}
+.cp-sw i{position:absolute;inset:0;background:var(--c,#cc2a2e)}
+.cp-sw input{position:absolute;inset:0;width:100%;height:100%;opacity:0;border:0;padding:0}
+.cp-chk{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);
+  min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.cp-chk input{accent-color:var(--ink)}
+#composer .cp-acts{display:flex;flex-direction:column;gap:6px;flex:0 0 auto}
+#composer .cp-acts button{width:40px;min-height:34px;font-size:17px;padding:0}
+@media (max-height:520px) and (orientation:landscape){
+  #composer{width:min(620px, calc(100% - 16px));bottom:6px}
+  #composer .edit{min-height:38px;max-height:26vh}
+}
 
 /* ---------- modales ---------- */
 .mask{position:fixed;inset:0;background:rgba(6,7,12,.72);display:none;align-items:center;
