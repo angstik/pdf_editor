@@ -334,8 +334,11 @@ button.rel.has .dot{display:block}
 /* ---------- saisie flottante (bêta) ----------
    Panneau non modal : ni fond assombri ni capture des événements, le document
    reste défilable et zoomable pendant la saisie. */
+/* --kb est la hauteur occupée par le clavier logiciel, mesurée par le script :
+   une position fixe se réfère au viewport de mise en page, que le clavier ne
+   réduit pas, et le panneau se retrouverait dessous. */
 #composer{position:fixed;left:50%;transform:translateX(-50%);
-  bottom:calc(10px + env(safe-area-inset-bottom,0px));
+  bottom:calc(var(--kb, 0px) + 10px + env(safe-area-inset-bottom,0px));
   width:min(620px, calc(100% - 16px));z-index:55;display:flex;flex-direction:column;gap:6px;
   background:var(--panel);border:1px solid var(--line);border-radius:12px;
   box-shadow:var(--shadow);padding:8px}
@@ -343,7 +346,8 @@ button.rel.has .dot{display:block}
 #composer .cp-row{display:flex;align-items:center;gap:8px;min-width:0;flex:0 0 auto}
 #composer .cp-row .spacer{flex:1 1 auto;min-width:4px}
 /* la zone de saisie occupe toute la hauteur restante, sans marge résiduelle */
-#composer .edit{flex:1 1 auto;min-height:72px;max-height:26vh;margin:0;
+#composer .edit{flex:1 1 auto;min-height:72px;margin:0;
+  max-height:calc(var(--vvh, 100vh) * .26);
   padding:7px 8px 6px;overflow-y:auto}
 #composer .edit br:last-child{display:none}
 #composer .cp-sw{position:relative;width:40px;min-height:30px;padding:0;flex:0 0 auto;overflow:hidden}
@@ -358,13 +362,19 @@ button.rel.has .dot{display:block}
 .cp-pal[hidden]{display:none}
 .cp-pal button{width:26px;height:26px;min-height:26px;padding:0;border-radius:50%}
 .cp-pal button.on{outline:2px solid var(--ink);outline-offset:2px}
-#composer .cp-row button{width:38px;min-height:32px;font-size:16px;padding:0;flex:0 0 auto}
+/* uniquement les trois commandes : le bouton de couleur et celui de reprise
+   ont leur propre gabarit, écrasé jusqu'ici par cette règle */
+#composer .cp-row button.icon{width:38px;min-height:32px;font-size:16px;padding:0;flex:0 0 auto}
 @media (max-height:520px) and (orientation:landscape){
   #composer{bottom:6px}
   #composer .edit{min-height:44px;max-height:30vh}
 }
 /* pendant la saisie flottante, le bas du document reste atteignable */
 body.composing .viewer{padding-bottom:180px}
+/* clavier déployé : le panneau se resserre, la place restante est rare */
+body.kb-open #composer{gap:4px;padding:6px}
+body.kb-open #composer .edit{min-height:46px}
+body.kb-open .drophint{display:none}
 
 /* ---------- modales ---------- */
 .mask{position:fixed;inset:0;background:rgba(6,7,12,.72);display:none;align-items:center;

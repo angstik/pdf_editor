@@ -19,7 +19,7 @@ const bind = (ids, fn)=> ids.forEach(id=>{ const el=$(id); if(el) el.onclick = f
 
 let toastT;
 let deferredPrompt = null;   // requête d'installation PWA, captée plus bas
-const APP_VERSION = 'v19';
+const APP_VERSION = 'v20';
 /* Saisie flottante des commentaires : fonction en cours de mise au point,
    désactivée par défaut. */
 const BETA_CMT = ()=> localStorage.getItem('pdfed.beta') === '1';
@@ -2657,7 +2657,12 @@ addEventListener('resize', ()=>{
 if(window.visualViewport){
   const vv = window.visualViewport;
   const fit = ()=>{
-    document.documentElement.style.setProperty('--vvh', Math.round(vv.height) + 'px');
+    const root = document.documentElement;
+    root.style.setProperty('--vvh', Math.round(vv.height) + 'px');
+    /* ce que le clavier, barre d'accessoires comprise, occupe en bas */
+    const kb = Math.max(0, Math.round(innerHeight - vv.height - vv.offsetTop));
+    root.style.setProperty('--kb', kb + 'px');
+    document.body.classList.toggle('kb-open', kb > 80);
     if(window.scrollY || window.scrollX) window.scrollTo(0, 0);
     if(Doc.pdf && Doc.autoFit){ clearTimeout(Doc.rt); Doc.rt = setTimeout(fitPage, 220); }
   };
