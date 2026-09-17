@@ -19,7 +19,7 @@ const bind = (ids, fn)=> ids.forEach(id=>{ const el=$(id); if(el) el.onclick = f
 
 let toastT;
 let deferredPrompt = null;   // requête d'installation PWA, captée plus bas
-const APP_VERSION = 'v21';
+const APP_VERSION = 'v22';
 /* Saisie flottante des commentaires : fonction en cours de mise au point,
    désactivée par défaut. */
 const BETA_CMT = ()=> localStorage.getItem('pdfed.beta') === '1';
@@ -61,6 +61,35 @@ function paletteFor(kind, current){
   }
   return out.slice(0,10);
 }
+/* Une seule ligne pour toute la gestion de couleur : noir, couleur courante,
+   historique, primaires, puis une pastille multicolore qui ouvre le sélecteur
+   standard du système. Employée telle quelle par la fenêtre complète et par
+   le panneau simplifié. */
+const PRIMARIES = ['#1a4fd6','#1b7a4b','#c62828','#e0a800','#7b2fbe'];
+function colorRowHtml(id, current, kind='cmt'){
+  const seen = new Set(), out = [];
+  const add = c=>{ const k = String(c).toLowerCase(); if(!seen.has(k)){ seen.add(k); out.push(c); } };
+  add('#000000'); add(current);
+  recentColors(kind).forEach(add);
+  PRIMARIES.forEach(add);
+  return `<div class="crow" id="${id}">
+    ${out.slice(0,12).map(c=>`<button type="button" tabindex="-1" data-c="${c}"
+       style="background:${c}" aria-label="${c}"
+       class="${c.toLowerCase() === String(current).toLowerCase() ? 'on' : ''}"></button>`).join('')}
+    <label class="crow-more" title="${esc(t('insp.color'))}">
+      <input type="color" id="${id}-i" value="${esc(current)}" tabindex="-1"></label>
+  </div>`;
+}
+function bindColorRow(id, onPick, kind='cmt'){
+  const box = $('#'+id);
+  const mark = v=> $$('button', box).forEach(b=>
+    b.classList.toggle('on', b.dataset.c.toLowerCase() === String(v).toLowerCase()));
+  $$('button', box).forEach(b => b.onclick = ()=>{ mark(b.dataset.c); pushRecent(kind, b.dataset.c); onPick(b.dataset.c, true); });
+  const inp = $('#'+id+'-i');
+  inp.oninput  = e=>{ mark(e.target.value); onPick(e.target.value, false); };
+  inp.onchange = e=>{ pushRecent(kind, e.target.value); onPick(e.target.value, true); };
+}
+
 function swatchHtml(id, color, disabled, kind='text'){
   return `<label class="swatch" style="--c:${esc(color)}"><i></i>
     <input type="color" id="${id}" value="${esc(color)}" ${disabled?'disabled':''}>
@@ -979,6 +1008,7 @@ async function loadPdf(file){
     await fitPage();
     toast(t('t.docLoaded',{n:Doc.total}),'ok');
     scanComments();
+    sessionSave(true);
   }catch(err){ console.error(err); toast(t('t.readFail',{e:err.message}),'err'); }
 }
 
@@ -1005,6 +1035,7 @@ function doCloseDoc(){
   $('#pTot').textContent = '/ –'; $('#pNum').value = '–'; $('#zLbl').textContent = '100%';
   Doc.total = 0; sizePageField();
   drawItems();
+  sessionClear();
   toast(t('t.docClosed'));
 }
 
@@ -1054,6 +1085,67 @@ function sizePageField(){
   el.style.width = `calc(${d}ch + 17px)`;
   el.maxLength = d;
 }
+
+/* ---------------------------------------------------------------------
+   Reprise de session
+
+   iOS libère la mémoire d'une application mise en arrière-plan : au retour,
+   la page est rechargée de zéro. On conserve donc l'état dans IndexedDB.
+   Un jeton déposé dans sessionStorage distingue les deux situations : il
+   survit au rechargement d'un contexte conservé, mais disparaît quand
+   l'application est réellement relancée après avoir été fermée. L'état n'est
+   donc restauré que dans le premier cas.
+   ------------------------------------------------------------------ */
+const S_KEY = 'session', S_TOKEN = 'pdfed.token';
+let sessionTimer = null;
+async function sessionSave(withBytes){
+  if(!Doc.pdf || !Doc.bytes) return;
+  try{
+    let token = sessionStorage.getItem(S_TOKEN);
+    if(!token){ token = uid(); sessionStorage.setItem(S_TOKEN, token); }
+    const prev = withBytes ? null : await dbGet('meta', S_KEY).catch(()=>null);
+    await dbPut('meta', {
+      key: S_KEY, token, name: Doc.name, page: Doc.page,
+      cmtOffset: Doc.cmtOffset, dirty: Doc.dirty,
+      items: JSON.parse(JSON.stringify(Doc.items)),
+      /* les octets ne sont réécrits qu'au chargement du document : les
+         réécrire à chaque passage en arrière-plan coûterait bien trop cher */
+      bytes: withBytes ? Doc.bytes.slice(0) : (prev && prev.bytes) || null
+    });
+  }catch(err){ console.warn('session:', err.message); }
+}
+const sessionSaveSoon = ()=>{ clearTimeout(sessionTimer); sessionTimer = setTimeout(()=>sessionSave(false), 400); };
+async function sessionClear(){
+  try{ await dbDel('meta', S_KEY); }catch(e){}
+  sessionStorage.removeItem(S_TOKEN);
+}
+async function sessionRestore(){
+  let rec = null;
+  try{ rec = await dbGet('meta', S_KEY); }catch(e){ return false; }
+  if(!rec) return false;
+  if(!rec.bytes || sessionStorage.getItem(S_TOKEN) !== rec.token){
+    await sessionClear(); return false;          // relancement à froid : on repart propre
+  }
+  try{
+    const bytes = new Uint8Array(rec.bytes);
+    Doc.bytes = bytes;
+    Doc.pdf = await pdfjsLib.getDocument({data: bytes.slice(0), isEvalSupported:false}).promise;
+    Object.assign(Doc, {name: rec.name, total: Doc.pdf.numPages,
+      page: clamp(rec.page || 1, 1, Doc.pdf.numPages),
+      items: rec.items || [], sel: null, undo: [], redo: [], autoFit: true,
+      cmtOffset: rec.cmtOffset || 0, dirty: !!rec.dirty});
+    Doc.vp1.clear(); Doc.rot.clear(); Doc.text.clear(); shotCache.clear();
+    setDocName(rec.name);
+    $('#btnClose').hidden = false;
+    $('#pTot').textContent = '/ ' + Doc.total;
+    sizePageField();
+    $('#hint').hidden = true; $('#stage').hidden = false;
+    await fitPage();
+    return true;
+  }catch(err){ console.warn('session:', err.message); await sessionClear(); return false; }
+}
+addEventListener('visibilitychange', ()=>{ if(document.visibilityState === 'hidden') sessionSave(false); });
+addEventListener('pagehide', ()=> sessionSave(false));
 
 async function getVp1(n){
   if(!Doc.vp1.has(n)){
@@ -1309,6 +1401,7 @@ function restore(json){
   if(it && it.page!==Doc.page){ Doc.page=it.page; renderPage(); } else drawItems();
 }
 function snapshot(){
+  sessionSaveSoon();
   Doc.undo.push(snap());
   if(Doc.undo.length>80) Doc.undo.shift();
   Doc.redo.length = 0;
@@ -1702,11 +1795,9 @@ $('#cpCol').onclick = ()=>{
   const pal = $('#cpPal');
   if(!pal.hidden){ pal.hidden = true; return; }
   const cur = composing ? composing.it.color : CMT_COLOR;
-  pal.innerHTML = paletteFor('cmt', cur).map(c =>
-    `<button type="button" tabindex="-1" data-c="${c}" style="background:${c}"
-      class="${c.toLowerCase() === cur.toLowerCase() ? 'on' : ''}" aria-label="${c}"></button>`).join('');
-  $$('#cpPal button').forEach(b => b.onclick = ()=>{ cpSetColor(b.dataset.c, true); pal.hidden = true; });
-  keepCaret($('#cpTxt'), ['#cpPal button'], $('#composer'));
+  pal.innerHTML = colorRowHtml('cpRow', cur);
+  bindColorRow('cpRow', (c, done)=>{ cpSetColor(c, false); if(done) pal.hidden = true; });
+  keepCaret($('#cpTxt'), ['#cpRow button', '#cpRow label'], $('#composer'));
   pal.hidden = false;
 };
 function composerValues(){
@@ -1799,10 +1890,8 @@ function editComment(it, isNew){
     <div id="cTxt" class="edit" contenteditable="plaintext-only" role="textbox"
          aria-multiline="true" data-ph="${esc(t('m.commentPh'))}"></div>
     <label class="f"><input type="checkbox" id="cShot" ${it.shot ? 'checked' : ''}>${esc(t('insp.shotHere'))}</label>
-    <div class="compact">
-      <label class="f">${esc(t('insp.color'))}</label>
-      ${swatchHtml('cCol', it.color, false, 'cmt')}
-    </div>
+    <label class="f">${esc(t('insp.color'))}</label>
+    ${colorRowHtml('cRow', it.color)}
     <div class="foot">
       <button id="cSwitch" class="left" title="${esc(t('m.toComposer'))}">⤢</button>
       <button id="cCancel">${esc(t('m.cancel'))}</button>
@@ -1813,11 +1902,11 @@ function editComment(it, isNew){
     closeModal();
   };
   let color = it.color, shot = !!it.shot;
-  bindSwatch('cCol', v=>{ color = v; }, 'cmt');
+  bindColorRow('cRow', v=>{ color = v; });
   /* Choisir une couleur ou cocher la reproduction ne doit pas sortir le curseur
      du texte : le focus et la sélection sont rendus tels quels. */
   edSet('cTxt', it.text || '');
-  keepCaret($('#cTxt'), ['#cCol-p button', '#cShot', '.swatch']);
+  keepCaret($('#cTxt'), ['#cRow button', '#cRow label', '#cShot']);
   $('#cShot').onchange = e=>{ shot = e.target.checked; };
   $('#cSwitch').onclick = ()=>{
     it.text = edGet('cTxt'); it.color = color; it.shot = shot;
@@ -2685,5 +2774,6 @@ drawItems();
   }catch(e){
     $('#libBody').innerHTML = `<div class="empty">${esc(t('t.storageFail',{e:e.message}))}</div>`;
   }
-  if(localStorage.getItem('pdfed.splash') !== 'off') setTimeout(()=>showSplash(true), 350);
+  const resumed = await sessionRestore();
+  if(!resumed && localStorage.getItem('pdfed.splash') !== 'off') setTimeout(()=>showSplash(true), 350);
 })();

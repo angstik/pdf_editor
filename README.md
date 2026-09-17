@@ -47,6 +47,11 @@ Installable sur ordinateur et sur mobile (Android / iOS), utilisable hors ligne.
   et l'élément reste redimensionnable indépendamment de ce qu'il entoure — poignées d'angle et
   de côté, ou saisie directe de la largeur et de la hauteur. Numérotation automatique dans
   l'ordre de lecture (page, puis de haut en bas).
+- **Ligne de couleur unique**, partagée par la fenêtre complète et le panneau simplifié : noir,
+  couleur courante, historique, primaires, puis une pastille multicolore qui ouvre le sélecteur
+  standard du système.
+- **Reprise de session** : le document ouvert, ses éléments et la page courante survivent à un
+  passage en arrière-plan, y compris quand le système libère la mémoire de l'application.
 - **Couleurs récentes** proposées en tête de la rangée de pastilles, mémorisées par usage
   (texte, surlignage et commentaire ont leurs propres historiques).
 - Double-clic sur la poignée ronde : l'angle est ramené au multiple de 90° le plus proche.
@@ -240,6 +245,13 @@ réinterprétés à chaque fois. Chaque commentaire produit donc un cadre, une t
 numéro **dessinés dans le contenu**, un `/Link` couvrant la zone et un second sur la pastille,
 tous deux vers la note en annexe, un `/Link` de retour depuis l'annexe, et une note `/Text`
 isolée dans la marge qui porte le texte pour les lecteurs sachant ouvrir une bulle.
+
+**Reprise de session.** iOS libère la mémoire d'une application mise en arrière-plan : au retour,
+la page est rechargée de zéro. L'état est donc conservé dans IndexedDB, et un jeton déposé dans
+`sessionStorage` distingue les deux situations — il survit au rechargement d'un contexte conservé
+mais disparaît quand l'application est relancée après avoir été fermée. L'état n'est restauré que
+dans le premier cas. Les octets du PDF ne sont réécrits qu'au chargement du document ; les
+passages en arrière-plan ne réenregistrent que l'état léger.
 
 **Barre d'accessoires d'iOS.** Safari l'affiche pour tout contexte d'édition, élément
 `contenteditable` compris, et aucune interface web ne permet de la supprimer. Le panneau ne
