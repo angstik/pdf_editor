@@ -19,10 +19,9 @@ const bind = (ids, fn)=> ids.forEach(id=>{ const el=$(id); if(el) el.onclick = f
 
 let toastT;
 let deferredPrompt = null;   // requête d'installation PWA, captée plus bas
-const APP_VERSION = 'v23';
+const APP_VERSION = 'v24';
 /* Saisie flottante des commentaires : fonction en cours de mise au point,
    désactivée par défaut. */
-const BETA_CMT = ()=> localStorage.getItem('pdfed.beta') === '1';
 function toast(msg, kind){
   const el=$('#toast'); el.textContent=msg;
   el.style.borderLeftColor = kind==='err'?'var(--stamp)':kind==='ok'?'var(--ok)':'var(--ink)';
@@ -298,7 +297,6 @@ function showSettingsModal(){
       <label class="f">${esc(t('nav.language'))}</label>
       <div class="row"><button id="setLangBtn" style="justify-content:flex-start;gap:8px">
         ${flagSvg(LANG)}<span>${esc((LANGS.find(l=>l.code===LANG)||{}).label||LANG)}</span></button></div>
-      <label class="f"><input type="checkbox" id="setBeta" ${BETA_CMT()?'checked':''}>${esc(t('insp.beta'))}</label>
       <label class="f"><input type="checkbox" id="setNote" ${NOTE_ON()?'checked':''}>${esc(t('insp.marginNote'))}</label>
       <label class="f"><input type="checkbox" id="setAnnex1" ${ANNEX_1ST()?'checked':''}>${esc(t('insp.annexFirst'))}</label>
       <label class="f"><input type="checkbox" id="setShot" ${SHOT_ON()?'checked':''}>${esc(t('insp.shot'))}</label>
@@ -318,7 +316,6 @@ function showSettingsModal(){
     <div class="foot"><button class="primary" id="setDone">${esc(t('m.close'))}</button></div>`);
   $('#setDone').onclick = ()=>{ closeModal(); togglePane('insp', false); };
   $$('#themeSeg button').forEach(b=> b.onclick = ()=>applyTheme(b.dataset.t));
-  $('#setBeta').onchange = e=> localStorage.setItem('pdfed.beta', e.target.checked ? '1' : '0');
   $('#setNote').onchange   = e=> localStorage.setItem('pdfed.note', e.target.checked ? '1' : '0');
   $('#setAnnex1').onchange = e=> localStorage.setItem('pdfed.annexFirst', e.target.checked ? '1' : '0');
   $('#setShot').onchange   = e=> localStorage.setItem('pdfed.shot', e.target.checked ? '1' : '0');
@@ -1596,7 +1593,7 @@ $('#layer').addEventListener('dblclick', e=>{
     const c = Doc.items.find(i=>i.id===host.dataset.id);
     if(c && c.type==='comment' && !c.locked){
       e.preventDefault();
-      return BETA_CMT() ? openComposer(c, false) : editComment(c, false);
+      return openComposer(c, false);
     }
   }
   if(e.target.dataset.h !== 'rot') return;
@@ -1751,7 +1748,7 @@ function openComposer(it, isNew){
   composing = {it, isNew};
   document.body.classList.add('composing');
   setMode(null);            // le tracé est terminé : plus de nouveau rectangle
-  $('#cpShotLbl').textContent = t('insp.shotHere');
+  $('#cpShotLbl').textContent = t('insp.shotShort');
   cpSetShot(!!it.shot);
   cpSetColor(it.color, false);
   $('#cpOk').title  = t('m.ok');
@@ -1764,6 +1761,9 @@ function openComposer(it, isNew){
   edSet('cpTxt', it.text || '');
   $('#composer').hidden = false;
   keepCaret($('#cpTxt'), ['#cpShot', '#cpCol', '#cpPal button'], $('#composer'));
+  /* le texte est reporté sur l'élément au fil de la frappe : rien n'est perdu
+     si le système met l'application en arrière-plan pendant la saisie */
+  $('#cpTxt').oninput = ()=>{ if(composing){ composing.it.text = edGet('cpTxt'); sessionSaveSoon(); } };
   edCaretEnd('cpTxt');
 }
 function closeComposer(){
@@ -1826,12 +1826,24 @@ $('#cpNo').onclick = ()=>{
   if(isNew){ Doc.items = Doc.items.filter(x => x.id !== it.id); Doc.sel = null; }
   drawItems();
 };
+/* Le reste des réglages a rejoint le panneau Propriétés : ce bouton ne sert
+   plus qu'à renseigner l'auteur, repris ensuite d'un commentaire à l'autre. */
 $('#cpSet').onclick = ()=>{
   if(!composing) return;
-  const {it, isNew} = composing;
-  Object.assign(it, composerValues());
-  closeComposer();
-  editComment(it, isNew && !Doc.items.some(x => x.id === it.id));
+  const it = composing.it;
+  const cur = it.author || localStorage.getItem('pdfed.author') || '';
+  modal(`<h3>${esc(t('insp.author'))}</h3>
+    <input type="text" id="auName" value="${esc(cur)}" autocomplete="name">
+    <div class="foot"><button data-close>${esc(t('m.cancel'))}</button>
+      <button class="primary" id="auOk">${esc(t('m.ok'))}</button></div>`);
+  $('#auName').select();
+  $('#auOk').onclick = ()=>{
+    const v = $('#auName').value.trim();
+    it.author = v;
+    localStorage.setItem('pdfed.author', v);
+    closeModal();
+    setTimeout(()=>edCaretEnd('cpTxt'), 0);
+  };
 };
 
 function addComment(r){
@@ -1841,108 +1853,13 @@ function addComment(r){
     shot: SHOT_ON(),                 // coche initialisée par le réglage général
     author: localStorage.getItem('pdfed.author') || '',
     text:'', opacity:1, locked:false};
-  if(BETA_CMT()){
-    /* le cadre est posé tout de suite : on le voit et on peut le déplacer
-       pendant la saisie, le panneau ne masquant presque rien */
-    snapshot();
-    Doc.items.push(it); Doc.sel = it.id; drawItems();
-    openComposer(it, true);
-    return;
-  }
-  editComment(it, true);
+  /* le cadre est posé tout de suite : on le voit et on peut le déplacer
+     pendant la saisie, le panneau ne masquant presque rien */
+  snapshot();
+  Doc.items.push(it); Doc.sel = it.id; drawItems();
+  openComposer(it, true);
 }
 /* Saisie du texte. À la création, un commentaire vide est simplement abandonné. */
-const DRAFT = 'pdfed.cmtDraft';
-const draftGet = ()=>{ try{ return JSON.parse(localStorage.getItem(DRAFT) || 'null'); }catch(e){ return null; } };
-const draftClear = ()=> localStorage.removeItem(DRAFT);
-
-function editComment(it, isNew){
-  /* Un nouveau commentaire reprend le brouillon laissé par une saisie
-     interrompue autrement que par Valider ou Annuler — un clic à côté de la
-     fenêtre, par exemple, ou un rechargement de la page. */
-  if(isNew){
-    const d = draftGet();
-    if(d){ it.text = d.text || ''; it.author = d.author || it.author; it.color = d.color || it.color; }
-  }
-  /* sortie par le décor : on garde le texte et on désarme l'outil */
-  let settled = false;
-  const bail = e=>{
-    if(settled || !$('#mask').classList.contains('on')) return;
-    if(e && e.target && e.target.id !== 'mask') return;
-    stash(); settled = true;
-    $('#mask').removeEventListener('click', bail);
-    if(isNew) setMode(null);
-  };
-  const stash = ()=>{
-    if(!isNew) return;
-    const txt = $('#cTxt') ? edGet('cTxt').trim() : '';
-    if(txt) localStorage.setItem(DRAFT, JSON.stringify({
-      text: txt, author: $('#cAuth') ? $('#cAuth').value.trim() : '', color: it.color
-    }));
-  };
-  if(isNew){
-    $('#mask').addEventListener('click', bail);
-    addEventListener('keydown', function esc(ev){
-      if(ev.key === 'Escape'){ bail({target:{id:'mask'}}); removeEventListener('keydown', esc); }
-    });
-  }
-  modal(`<h3>${esc(t('m.commentTitle'))}${isNew?'':' '+cmtNumber(it.id)}</h3>
-    <p>${esc(t('m.commentBody'))}</p>
-    <label class="f">${esc(t('insp.author'))}</label>
-    <input type="text" id="cAuth" value="${esc(it.author||'')}" autocomplete="name">
-    <label class="f">${esc(t('insp.commentText'))}
-      <button type="button" id="cClr" class="mini">${esc(t('m.drawClear'))}</button></label>
-    <div id="cTxt" class="edit" contenteditable="plaintext-only" role="textbox"
-         aria-multiline="true" data-ph="${esc(t('m.commentPh'))}"></div>
-    <label class="f"><input type="checkbox" id="cShot" ${it.shot ? 'checked' : ''}>${esc(t('insp.shotHere'))}</label>
-    <label class="f">${esc(t('insp.color'))}</label>
-    ${colorRowHtml('cRow', it.color)}
-    <div class="foot">
-      <button id="cSwitch" class="left" title="${esc(t('m.toComposer'))}">⤢</button>
-      <button id="cCancel">${esc(t('m.cancel'))}</button>
-      <button class="primary" id="cOk">${esc(t('m.ok'))}</button></div>`);
-  /* Annuler est une décision explicite : le brouillon est abandonné. */
-  $('#cCancel').onclick = ()=>{
-    settled = true; if(isNew){ draftClear(); setMode(null); }
-    closeModal();
-  };
-  let color = it.color, shot = !!it.shot;
-  bindColorRow('cRow', (v, done)=>{ color = v; if(done) setTimeout(()=>edCaretEnd('cTxt'), 0); });
-  /* Choisir une couleur ou cocher la reproduction ne doit pas sortir le curseur
-     du texte : le focus et la sélection sont rendus tels quels. */
-  edSet('cTxt', it.text || '');
-  /* la pastille multicolore est volontairement exclue : lui reprendre le focus
-     empêcherait le sélecteur standard du système de s'ouvrir */
-  keepCaret($('#cTxt'), ['#cRow button', '#cShot']);
-  $('#cShot').onchange = e=>{ shot = e.target.checked; };
-  $('#cClr').onclick = ()=>{ edSet('cTxt',''); edCaretEnd('cTxt'); };
-  $('#cSwitch').onclick = ()=>{
-    it.text = edGet('cTxt'); it.color = color; it.shot = shot;
-    it.author = $('#cAuth').value.trim();
-    settled = true; closeModal();
-    if(isNew && !Doc.items.some(x => x.id === it.id)){
-      snapshot(); Doc.items.push(it); Doc.sel = it.id; drawItems();
-    }
-    openComposer(it, isNew);
-  };
-  edCaretEnd('cTxt');
-  $('#cOk').onclick = ()=>{
-    const txt = edGet('cTxt').trim();
-    settled = true;
-    if(isNew && !txt){ draftClear(); setMode(null); closeModal(); toast(t('t.cmtEmpty')); return; }
-    if(isNew) draftClear();
-    snapshot();
-    it.text = txt;
-    it.author = $('#cAuth').value.trim();
-    it.color = color;
-    it.shot = shot;
-    localStorage.setItem('pdfed.author', it.author);
-    localStorage.setItem('pdfed.cmt.color', color);
-    if(isNew){ Doc.items.push(it); Doc.sel = it.id; setMode(null); }
-    closeModal(); drawItems();
-    if(isNew) toast(t('t.cmtAdded'),'ok');
-  };
-}
 function hlItem(r, color){
   return {id:uid(), page:Doc.page, type:'highlight', color, opacity:0.45,
           x:r.x, y:r.y, w:r.w, h:r.h, rot:0, locked:false};
@@ -2098,7 +2015,7 @@ function renderInspector(){
                                         localStorage.setItem('pdfed.author', it.author); });
     $('#fW').onchange = e=>upd(()=>{ it.w=Math.max(6,+e.target.value); });
     $('#fH').onchange = e=>upd(()=>{ it.h=Math.max(6,+e.target.value); });
-    $('#fEdit').onclick = ()=>editComment(it, false);
+    $('#fEdit').onclick = ()=>openComposer(it, false);
   } else if(it.type==='highlight'){
     bindSwatch('fCol', (v, done)=>{
       it.color=v;

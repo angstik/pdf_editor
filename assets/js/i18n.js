@@ -12,6 +12,7 @@ const I18N = {
 /* ------------------------------------------------------------------ FR */
 fr:{
 locale:'fr-FR',
+'insp.shotShort':"Incl. source",
 'nav.update':"Mettre à jour",
 't.updating':"Recherche d'une mise à jour…",
 't.upToDate':"L'application est à jour",
@@ -199,6 +200,7 @@ locale:'fr-FR',
 /* ------------------------------------------------------------------ EN */
 en:{
 locale:'en-GB',
+'insp.shotShort':"Incl. source",
 'nav.update':"Update",
 't.updating':"Checking for an update…",
 't.upToDate':"The app is up to date",
@@ -386,6 +388,7 @@ locale:'en-GB',
 /* ------------------------------------------------------------------ DE */
 de:{
 locale:'de-DE',
+'insp.shotShort':"Inkl. Quelle",
 'nav.update':"Aktualisieren",
 't.updating':"Suche nach einer Aktualisierung…",
 't.upToDate':"Die App ist aktuell",
@@ -574,6 +577,7 @@ locale:'de-DE',
 /* ------------------------------------------------------------------ ES */
 es:{
 locale:'es-ES',
+'insp.shotShort':"Incl. origen",
 'nav.update':"Actualizar",
 't.updating':"Buscando una actualización…",
 't.upToDate':"La aplicación está actualizada",
@@ -761,6 +765,7 @@ locale:'es-ES',
 /* ------------------------------------------------------------------ IT */
 it:{
 locale:'it-IT',
+'insp.shotShort':"Incl. origine",
 'nav.update':"Aggiorna",
 't.updating':"Ricerca di un aggiornamento…",
 't.upToDate':"L'applicazione è aggiornata",
@@ -948,6 +953,7 @@ locale:'it-IT',
 /* ------------------------------------------------------------------ UK */
 uk:{
 locale:'uk-UA',
+'insp.shotShort':"Вкл. джерело",
 'nav.update':"Оновити",
 't.updating':"Пошук оновлення…",
 't.upToDate':"Застосунок актуальний",
@@ -1135,6 +1141,7 @@ locale:'uk-UA',
 /* ------------------------------------------------------------------ CS */
 cs:{
 locale:'cs-CZ',
+'insp.shotShort':"Vč. předlohy",
 'nav.update':"Aktualizovat",
 't.updating':"Hledání aktualizace…",
 't.upToDate':"Aplikace je aktuální",

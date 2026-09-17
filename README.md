@@ -104,11 +104,11 @@ Installable sur ordinateur et sur mobile (Android / iOS), utilisable hors ligne.
   `auto`, de sorte que masquer un panneau suffit à redistribuer la place.
 - **Bouton de mise à jour** dans les réglages : il interroge le service worker, active la version
   en attente et recharge, au lieu d'attendre la fermeture de tous les onglets.
-- **Saisie flottante des commentaires**, en option et à l'état de mise au point : un panneau non
-  modal, posé en bas de l'écran, qui ne masque presque rien. Le cadre est posé dès le tracé, le
-  document reste défilable et zoomable pendant la saisie, et le panneau ne se referme que par
-  l'un de ses trois boutons — valider, abandonner, ou basculer vers la fenêtre complète. La
-  fenêtre classique reste le comportement par défaut et porte un bouton de bascule ponctuelle.
+- **Saisie des commentaires par panneau non modal**, posé sous le document : le cadre est créé
+  dès le tracé, le document reste défilable et zoomable pendant la saisie, et le texte est
+  reporté sur l'élément au fil de la frappe, de sorte qu'une mise en arrière-plan ne perd rien.
+  Le panneau ne se referme que par l'un de ses boutons : valider, abandonner, effacer la saisie,
+  ou renseigner l'auteur.
 - **Récapitulatif dans le presse-papiers** par un bouton dédié, en texte et en HTML, vignettes
   intégrées en `data:` URI. La copie doit partir d'un geste : Safari refuse une écriture dans le
   presse-papiers qui suivrait une opération longue comme la génération du PDF, ce qui écartait

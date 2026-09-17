@@ -341,13 +341,14 @@ button.rel.has .dot{display:block}
    ce qu'il contient reste au-dessus du clavier, sans compensation à calculer.
    Une position fixe se réfère au viewport de mise en page, que le clavier ne
    réduit pas — le panneau se retrouvait dessous. */
-#composer{grid-row:auto;justify-self:center;width:min(620px, calc(100% - 16px));
+#composer{grid-row:auto;justify-self:center;box-sizing:border-box;
+  width:min(620px, calc(100% - 16px));max-width:calc(100vw - 16px);
   margin:0 8px calc(8px + env(safe-area-inset-bottom,0px));
   display:flex;flex-direction:column;gap:6px;
   background:var(--panel);border:1px solid var(--line);border-radius:12px;
   box-shadow:var(--shadow);padding:8px;z-index:5}
 #composer[hidden]{display:none}
-#composer .cp-row{display:flex;align-items:center;gap:8px;min-width:0;flex:0 0 auto}
+#composer .cp-row{display:flex;align-items:center;gap:6px;min-width:0;flex:0 0 auto;flex-wrap:nowrap}
 #composer .cp-row .spacer{flex:1 1 auto;min-width:4px}
 /* la zone de saisie occupe toute la hauteur restante, sans marge résiduelle */
 #composer .edit{flex:1 1 auto;min-height:72px;margin:0;
@@ -358,9 +359,11 @@ button.rel.has .dot{display:block}
 .cp-sw i{position:absolute;inset:2px;border-radius:3px;background:var(--c,#cc2a2e)}
 /* Bouton à deux états présenté comme une case à cocher : pas de champ de
    formulaire, mais l'apparence attendue. */
-#composer .cp-chk{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text);
-  min-width:0;overflow:hidden;white-space:nowrap;padding:2px 4px;min-height:30px;width:auto;
-  background:transparent;border:0}
+/* le libellé se laisse comprimer plutôt que d'élargir le panneau */
+#composer .cp-chk{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text);
+  min-width:0;flex:0 1 auto;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;
+  padding:2px 4px;min-height:30px;width:auto;background:transparent;border:0}
+#composer .cp-chk span{overflow:hidden;text-overflow:ellipsis}
 #composer .cp-chk:hover{border:0}
 #composer .cp-chk .box{flex:0 0 auto;width:17px;height:17px;border-radius:4px;
   border:1.6px solid var(--line);display:flex;align-items:center;justify-content:center;
