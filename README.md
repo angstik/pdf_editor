@@ -49,7 +49,9 @@ Installable sur ordinateur et sur mobile (Android / iOS), utilisable hors ligne.
   l'ordre de lecture (page, puis de haut en bas).
 - **Ligne de couleur unique**, partagée par la fenêtre complète et le panneau simplifié : noir,
   couleur courante, historique, primaires, puis une pastille multicolore qui ouvre le sélecteur
-  standard du système.
+  standard du système. Cette pastille est la seule exclue du mécanisme qui rend le curseur à la
+  zone de texte : lui reprendre le focus empêcherait le sélecteur de s'ouvrir.
+- **Saisie du numéro de page désactivée** pour l'instant ; le champ ne sert plus que d'affichage.
 - **Reprise de session** : le document ouvert, ses éléments et la page courante survivent à un
   passage en arrière-plan, y compris quand le système libère la mémoire de l'application.
 - **Couleurs récentes** proposées en tête de la rangée de pastilles, mémorisées par usage

@@ -40,7 +40,7 @@
 <div class="toolbar">
   <span class="grp" id="grpNav">
     <button id="pPrev" class="icon glyph-lg" data-i18n-title="tool.prev" aria-label="">‹</button>
-    <input type="text" id="pNum" value="–" inputmode="numeric" maxlength="4" maxlength="4" data-i18n-title="tool.pageNumber" aria-label="">
+    <input type="text" id="pNum" value="–" readonly tabindex="-1" inputmode="none" maxlength="4" data-i18n-title="tool.pageNumber" aria-label="">
     <span class="tot" id="pTot">/ –</span>
     <button id="pNext" class="icon glyph-lg" data-i18n-title="tool.next" aria-label="">›</button>
     <span class="sep hide-sm"></span>
@@ -118,6 +118,7 @@
     <button id="cpShot" class="cp-chk" tabindex="-1" aria-pressed="false">
 <span class="box">✓</span><span id="cpShotLbl"></span></button>
     <span class="spacer"></span>
+    <button id="cpClr" class="icon" tabindex="-1">⌫</button>
     <button id="cpSet" class="icon" tabindex="-1">⚙</button>
     <button id="cpNo" class="icon" tabindex="-1">❌</button>
     <button id="cpOk" class="icon" tabindex="-1">✅</button>

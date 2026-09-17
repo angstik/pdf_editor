@@ -19,7 +19,7 @@ const bind = (ids, fn)=> ids.forEach(id=>{ const el=$(id); if(el) el.onclick = f
 
 let toastT;
 let deferredPrompt = null;   // requête d'installation PWA, captée plus bas
-const APP_VERSION = 'v22';
+const APP_VERSION = 'v23';
 /* Saisie flottante des commentaires : fonction en cours de mise au point,
    désactivée par défaut. */
 const BETA_CMT = ()=> localStorage.getItem('pdfed.beta') === '1';
@@ -288,7 +288,7 @@ function showLangModal(){
 }
 
 function showSettingsModal(){
-  modal(`<h3>${esc(t('nav.settings'))}</h3>
+  modal(`<h3>${esc(t('nav.settings'))} <span class="ver">${esc(APP_VERSION)}</span></h3>
     <div class="settings">
       <label class="f">${esc(t('nav.theme'))}</label>
       <div class="seg" id="themeSeg">
@@ -1234,7 +1234,6 @@ $('#pNext').onclick = ()=>goPage(Doc.page+1);
 /* double-clic : première ou dernière page */
 $('#pPrev').ondblclick = e=>{ e.preventDefault(); goPage(1); };
 $('#pNext').ondblclick = e=>{ e.preventDefault(); goPage(Doc.total); };
-$('#pNum').onchange = e=>{ const v=parseInt(e.target.value,10); v?goPage(v):(e.target.value=Doc.page); };
 $('#zIn').onclick   = ()=>{ if(Doc.pdf) setScale(Doc.scale*1.2); };
 $('#zOut').onclick  = ()=>{ if(Doc.pdf) setScale(Doc.scale/1.2); };
 bind(['#zFit','#zFitSm'], ()=>{ if(Doc.pdf) fitPage(); });
@@ -1758,6 +1757,7 @@ function openComposer(it, isNew){
   $('#cpOk').title  = t('m.ok');
   $('#cpNo').title  = t('m.cancel');
   $('#cpSet').title = t('nav.settings');
+  $('#cpClr').title = t('m.drawClear');
   $('#cpCol').setAttribute('aria-label', t('insp.color'));
   $('#cpTxt').dataset.ph = t('m.commentPh');
   $('#cpPal').hidden = true;
@@ -1791,13 +1791,17 @@ function cpSetColor(c, commit){
   }
 }
 $('#cpShot').onclick = ()=>{ cpSetShot(!$('#cpShot').classList.contains('on')); };
+$('#cpClr').onclick = ()=>{ edSet('cpTxt',''); edCaretEnd('cpTxt'); };
 $('#cpCol').onclick = ()=>{
   const pal = $('#cpPal');
   if(!pal.hidden){ pal.hidden = true; return; }
   const cur = composing ? composing.it.color : CMT_COLOR;
   pal.innerHTML = colorRowHtml('cpRow', cur);
-  bindColorRow('cpRow', (c, done)=>{ cpSetColor(c, false); if(done) pal.hidden = true; });
-  keepCaret($('#cpTxt'), ['#cpRow button', '#cpRow label'], $('#composer'));
+  bindColorRow('cpRow', (c, done)=>{
+    cpSetColor(c, false);
+    if(done){ pal.hidden = true; setTimeout(()=>edCaretEnd('cpTxt'), 0); }
+  });
+  keepCaret($('#cpTxt'), ['#cpRow button'], $('#composer'));
   pal.hidden = false;
 };
 function composerValues(){
@@ -1886,7 +1890,8 @@ function editComment(it, isNew){
     <p>${esc(t('m.commentBody'))}</p>
     <label class="f">${esc(t('insp.author'))}</label>
     <input type="text" id="cAuth" value="${esc(it.author||'')}" autocomplete="name">
-    <label class="f">${esc(t('insp.commentText'))}</label>
+    <label class="f">${esc(t('insp.commentText'))}
+      <button type="button" id="cClr" class="mini">${esc(t('m.drawClear'))}</button></label>
     <div id="cTxt" class="edit" contenteditable="plaintext-only" role="textbox"
          aria-multiline="true" data-ph="${esc(t('m.commentPh'))}"></div>
     <label class="f"><input type="checkbox" id="cShot" ${it.shot ? 'checked' : ''}>${esc(t('insp.shotHere'))}</label>
@@ -1902,12 +1907,15 @@ function editComment(it, isNew){
     closeModal();
   };
   let color = it.color, shot = !!it.shot;
-  bindColorRow('cRow', v=>{ color = v; });
+  bindColorRow('cRow', (v, done)=>{ color = v; if(done) setTimeout(()=>edCaretEnd('cTxt'), 0); });
   /* Choisir une couleur ou cocher la reproduction ne doit pas sortir le curseur
      du texte : le focus et la sélection sont rendus tels quels. */
   edSet('cTxt', it.text || '');
-  keepCaret($('#cTxt'), ['#cRow button', '#cRow label', '#cShot']);
+  /* la pastille multicolore est volontairement exclue : lui reprendre le focus
+     empêcherait le sélecteur standard du système de s'ouvrir */
+  keepCaret($('#cTxt'), ['#cRow button', '#cShot']);
   $('#cShot').onchange = e=>{ shot = e.target.checked; };
+  $('#cClr').onclick = ()=>{ edSet('cTxt',''); edCaretEnd('cTxt'); };
   $('#cSwitch').onclick = ()=>{
     it.text = edGet('cTxt'); it.color = color; it.shot = shot;
     it.author = $('#cAuth').value.trim();

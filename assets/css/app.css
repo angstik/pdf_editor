@@ -139,8 +139,10 @@ header{padding-top:max(8px,env(safe-area-inset-top,0px))}
 /* La largeur est posée par le script d'après le nombre de chiffres du total.
    En box-sizing:border-box elle englobe rembourrage et bordures : ceux-ci sont
    donc ajoutés au calcul, sinon il ne reste presque rien pour les chiffres. */
+/* saisie du numéro désactivée pour l'instant : le champ ne sert que d'affichage */
 .pager #pNum{box-sizing:border-box;min-width:0;text-align:center;font-size:14px;
-  font-weight:600;padding:5px 4px}
+  font-weight:600;padding:5px 4px;pointer-events:none;background:transparent;
+  border-color:transparent;color:var(--text)}
 .pager .tot{font-size:13px;font-weight:600;color:var(--muted);white-space:nowrap;
   margin-right:2px}
 .zlbl{font-family:var(--mono);width:46px;text-align:center;color:var(--muted);flex:0 0 auto}
@@ -398,6 +400,7 @@ body.kb-open .drophint{display:none}
   width:min(580px,100%);max-height:86vh;overflow:auto;box-shadow:0 24px 70px rgba(0,0,0,.5)}
 .modal h3{margin:0 0 6px;font-size:16px}
 .modal h4{margin:16px 0 6px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+.f .mini{min-height:20px;padding:0 7px;font-size:11px;margin-left:8px;vertical-align:middle}
 .modal p{margin:0 0 10px;color:var(--muted);line-height:1.55}
 .modal .foot{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;flex-wrap:wrap}
 .modal .foot .left{margin-right:auto}
