@@ -252,10 +252,11 @@ utile et la position du panneau restent justes.
 **Clavier logiciel et hauteur utile.** À son ouverture, iOS réduit le viewport visuel sans
 toucher au viewport de mise en page et fait défiler la page, ce qui sort le haut de l'application
 de l'écran sans retour possible. La hauteur est donc calée sur `window.visualViewport`, exposée
-en variable `--vvh`, et le défilement de la page est ramené à zéro à chaque changement. La
-hauteur occupée par le clavier est exposée de la même façon en `--kb` : un élément en position
-fixe se réfère au viewport de mise en page, que le clavier ne réduit pas, et le panneau de saisie
-se retrouverait sinon derrière lui.
+en variable `--vvh`, et le défilement de la page est ramené à zéro à chaque changement. Le panneau de
+saisie n'est pas posé en position fixe mais occupe une ligne de la grille du corps : puisque la
+hauteur du corps suit déjà le viewport visuel, tout ce qu'il contient reste au-dessus du clavier
+sans compensation à calculer. Une position fixe, elle, se réfère au viewport de mise en page, que
+le clavier ne réduit pas, et le panneau se retrouvait derrière lui.
 
 **Champ de saisie du commentaire.** Un élément `contenteditable="plaintext-only"` remplace la
 zone de texte : iOS impose au-dessus du clavier une barre d'accessoires dès qu'un champ de
