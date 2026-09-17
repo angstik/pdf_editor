@@ -1,5 +1,7 @@
 # EDITION PDF
 
+_Copyright DW-2026 — licence MIT, voir `LICENSE`._
+
 Application web (PWA) pour poser des **signatures, images et textes** sur un PDF, puis
 générer et enregistrer le document résultant. Tout se passe dans le navigateur : aucun
 fichier n'est envoyé sur un serveur, aucune dépendance réseau après la première visite.
@@ -104,6 +106,11 @@ Installable sur ordinateur et sur mobile (Android / iOS), utilisable hors ligne.
   `auto`, de sorte que masquer un panneau suffit à redistribuer la place.
 - **Bouton de mise à jour** dans les réglages : il interroge le service worker, active la version
   en attente et recharge, au lieu d'attendre la fermeture de tous les onglets.
+- **Guide embarqué** : `assets/help/guide-fr.pdf`, huit pages générées par `tools/build-guide.cjs`,
+  ouvertes dans l'application depuis les réglages. Les illustrations sont des reproductions
+  schématiques de l'interface, dessinées par le générateur : elles suivent les évolutions du
+  produit là où des captures d'écran se périmeraient.
+- **Partage de l'adresse de l'application** et **fenêtre de licence** listant les composants.
 - **Saisie des commentaires par panneau non modal**, posé sous le document : le cadre est créé
   dès le tracé, le document reste défilable et zoomable pendant la saisie, et le texte est
   reporté sur l'élément au fil de la frappe, de sorte qu'une mise en arrière-plan ne perd rien.

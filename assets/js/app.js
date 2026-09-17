@@ -19,7 +19,8 @@ const bind = (ids, fn)=> ids.forEach(id=>{ const el=$(id); if(el) el.onclick = f
 
 let toastT;
 let deferredPrompt = null;   // requête d'installation PWA, captée plus bas
-const APP_VERSION = 'v24';
+const APP_VERSION = 'v1.0';
+const APP_URL = 'https://angstik.github.io/pdf_editor/';
 /* Saisie flottante des commentaires : fonction en cours de mise au point,
    désactivée par défaut. */
 function toast(msg, kind){
@@ -71,16 +72,28 @@ function colorRowHtml(id, current, kind='cmt'){
   add('#000000'); add(current);
   recentColors(kind).forEach(add);
   PRIMARIES.forEach(add);
+  const dot = c => `<button type="button" tabindex="-1" data-c="${c}" style="background:${c}"
+      aria-label="${c}" class="${c.toLowerCase() === String(current).toLowerCase() ? 'on' : ''}"></button>`;
   return `<div class="crow" id="${id}">
-    ${out.slice(0,12).map(c=>`<button type="button" tabindex="-1" data-c="${c}"
-       style="background:${c}" aria-label="${c}"
-       class="${c.toLowerCase() === String(current).toLowerCase() ? 'on' : ''}"></button>`).join('')}
+    ${out.slice(0,2).map(dot).join('')}
+    <span class="cmid">${out.slice(2, 12).map(dot).join('')}</span>
     <label class="crow-more" title="${esc(t('insp.color'))}">
       <input type="color" id="${id}-i" value="${esc(current)}" tabindex="-1"></label>
   </div>`;
 }
 function bindColorRow(id, onPick, kind='cmt'){
   const box = $('#'+id);
+  /* on retire les pastilles intermédiaires qui ne tiennent pas, plutôt que de
+     les laisser déborder ou passer à la ligne sous le sélecteur */
+  const trim = ()=>{
+    const mid = $('.cmid', box);
+    if(!mid) return;
+    const dots = $$('button', mid);
+    dots.forEach(d => d.hidden = false);
+    for(let i = dots.length - 1; i >= 0 && mid.scrollWidth > mid.clientWidth + 1; i--) dots[i].hidden = true;
+  };
+  requestAnimationFrame(trim);
+  addEventListener('resize', trim, {once:true});
   const mark = v=> $$('button', box).forEach(b=>
     b.classList.toggle('on', b.dataset.c.toLowerCase() === String(v).toLowerCase()));
   $$('button', box).forEach(b => b.onclick = ()=>{ mark(b.dataset.c); pushRecent(kind, b.dataset.c); onPick(b.dataset.c, true); });
@@ -306,9 +319,15 @@ function showSettingsModal(){
       <label class="f">${esc(t('insp.suffix'))}</label>
       <input type="text" id="setSuffix" value="${esc(SUFFIX())}" spellcheck="false">
       <div class="row" style="margin-top:12px">
+        <button id="setGuide">${esc(t('nav.guide'))}</button>
+        <button id="setShare">${esc(t('nav.share'))}</button>
+        <button id="setLic" style="flex:0 0 auto">${esc(t('nav.license'))}</button>
+      </div>
+      <div class="row" style="margin-top:6px">
         <button id="setFs">${esc(t('nav.fullscreen'))}</button>
         <button id="setUpd">${esc(t('nav.update'))}</button>
       </div>
+      <div class="chip" style="margin-top:12px;justify-content:center">© DW-2026 · MIT</div>
       <div class="row" style="margin-top:6px"><button id="setHelp">${esc(t('nav.help'))}</button></div>
       <div class="row" style="margin-top:6px${deferredPrompt?'':';display:none'}">
         <button id="setInstall" class="primary">${esc(t('nav.install'))}</button></div>
@@ -325,6 +344,9 @@ function showSettingsModal(){
   $('#setSuffix').onchange = e=>
     localStorage.setItem('pdfed.suffix', e.target.value.replace(/[\\/:*?"<>|]/g,''));
   $('#setLangBtn').onclick = showLangModal;
+  $('#setGuide').onclick = openGuide;
+  $('#setShare').onclick = shareApp;
+  $('#setLic').onclick = showLicense;
   $('#setFs').onclick  = toggleFullscreen;
   $('#setUpd').onclick = forceUpdate;
   $('#setHelp').onclick = ()=>showSplash(false);
@@ -1231,6 +1253,7 @@ $('#pNext').onclick = ()=>goPage(Doc.page+1);
 /* double-clic : première ou dernière page */
 $('#pPrev').ondblclick = e=>{ e.preventDefault(); goPage(1); };
 $('#pNext').ondblclick = e=>{ e.preventDefault(); goPage(Doc.total); };
+$('#pNum').onchange = e=>{ const v = parseInt(e.target.value,10); v ? goPage(v) : (e.target.value = Doc.page); };
 $('#zIn').onclick   = ()=>{ if(Doc.pdf) setScale(Doc.scale*1.2); };
 $('#zOut').onclick  = ()=>{ if(Doc.pdf) setScale(Doc.scale/1.2); };
 bind(['#zFit','#zFitSm'], ()=>{ if(Doc.pdf) fitPage(); });
@@ -1842,9 +1865,23 @@ $('#cpSet').onclick = ()=>{
     it.author = v;
     localStorage.setItem('pdfed.author', v);
     closeModal();
-    setTimeout(()=>edCaretEnd('cpTxt'), 0);
+    /* la fenêtre rend la main avec un temps de retard sur iOS : sans ce délai
+       le focus repart avant que le panneau ne le reprenne */
+    backToText();
   };
+  $('#mask').addEventListener('click', function off(ev){
+    if(ev.target.closest('[data-close]') || ev.target.id === 'mask'){
+      $('#mask').removeEventListener('click', off); backToText();
+    }
+  });
 };
+function backToText(){
+  if(!composing) return;
+  setTimeout(()=>{
+    const el = $('#cpTxt');
+    if(el && !$('#composer').hidden){ el.focus(); edCaretEnd('cpTxt'); }
+  }, 140);
+}
 
 function addComment(r){
   const it = {id:uid(), page:Doc.page, type:'comment',
@@ -2609,6 +2646,52 @@ async function forceUpdate(){
       toast(t('t.upToDate'),'ok');
     }
   }catch(err){ console.warn(err.message); location.reload(); }
+}
+
+/* Le guide est un PDF embarqué : on l'ouvre dans l'application elle-même,
+   ce qui évite de sortir vers le navigateur depuis une PWA. */
+async function openGuide(){
+  try{
+    const r = await fetch('assets/help/guide-fr.pdf');
+    if(!r.ok) throw new Error(r.status);
+    closeModal();
+    await loadPdf(new File([await r.blob()], 'guide.pdf', {type:'application/pdf'}));
+  }catch(err){ toast(t('t.readFail',{e:err.message}),'err'); }
+}
+const COMPONENTS = [
+  ['pdf.js 3.11.174', 'Apache 2.0', 'Mozilla Foundation'],
+  ['pdf-lib 1.17.1', 'MIT', 'Andrew Dillon'],
+  ['@pdf-lib/fontkit 1.1.1', 'MIT', 'Andrew Dillon'],
+  ['Montserrat', 'SIL OFL 1.1', 'Julieta Ulanovsky et al.'],
+  ['Roboto', 'SIL OFL 1.1', 'Christian Robertson et al.']
+];
+function showLicense(){
+  modal(`<h3>${esc(t('nav.license'))}</h3>
+    <p><b>MIT</b> — Copyright (c) 2026 DW</p>
+    <p style="font-size:11.5px">Permission is hereby granted, free of charge, to any person obtaining
+    a copy of this software and associated documentation files, to deal in the Software without
+    restriction, including without limitation the rights to use, copy, modify, merge, publish,
+    distribute, sublicense, and/or sell copies of the Software, subject to the inclusion of the
+    above copyright notice. The Software is provided “as is”, without warranty of any kind.</p>
+    <h4>${esc(t('nav.license'))}</h4>
+    <div class="list" style="max-height:none">
+      ${COMPONENTS.map(([n2,l,w])=>`<div class="li" style="cursor:default">
+        <span class="t"><b>${esc(n2)}</b> — ${esc(w)}</span>
+        <span class="badge">${esc(l)}</span></div>`).join('')}
+    </div>
+    <p class="mono" style="margin-top:12px">Copyright DW-2026</p>
+    <div class="foot"><button class="primary" data-close>${esc(t('m.close'))}</button></div>`);
+}
+
+async function shareApp(){
+  const data = {title:'EDITION PDF', text:t('sp.intro'), url:APP_URL};
+  try{
+    if(navigator.share && (!navigator.canShare || navigator.canShare(data))){
+      await navigator.share(data); return;
+    }
+  }catch(err){ if(err.name === 'AbortError') return; }
+  try{ await navigator.clipboard.writeText(APP_URL); toast(t('t.linkCopied'),'ok'); }
+  catch(err){ toast(APP_URL); }
 }
 
 async function toggleFullscreen(){

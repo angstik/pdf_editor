@@ -8,7 +8,7 @@
    d'authentification, une page de connexion renvoyée par redirection n'entrera
    jamais dans le cache à la place des fichiers de l'application.
    ===================================================================== */
-const CACHE_VERSION = 'v24';
+const CACHE_VERSION = 'v1.0';
 const CACHE = 'pdfed-' + CACHE_VERSION;
 
 const SHELL = [
@@ -18,6 +18,7 @@ const SHELL = [
   'assets/css/app.css',
   'assets/js/app.js',
   'assets/js/i18n.js',
+  'assets/help/guide-fr.pdf',
   'assets/js/theme-boot.js',
   'vendor/pdf.min.js',
   'vendor/pdf.worker.min.js',

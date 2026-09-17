@@ -68,7 +68,7 @@ input[type=text],input[type=password],input[type=number],select,textarea{
   background:var(--field);border:1px solid var(--line);border-radius:var(--r);padding:6px 8px;width:100%}
 textarea{resize:vertical}
 input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid var(--ink);outline-offset:1px}
-label.f{display:block;margin:9px 0 3px;color:var(--muted);font-size:11.5px}
+label.f{display:block;margin:10px 0 4px;color:var(--muted);font-size:12.5px}
 label.f input[type=checkbox]{width:auto;margin-right:4px;accent-color:var(--ink)}
 .icon{width:36px;padding:2px;flex:0 0 auto;font-size:20px;font-weight:700;line-height:1;
   letter-spacing:0}
@@ -139,10 +139,8 @@ header{padding-top:max(8px,env(safe-area-inset-top,0px))}
 /* La largeur est posée par le script d'après le nombre de chiffres du total.
    En box-sizing:border-box elle englobe rembourrage et bordures : ceux-ci sont
    donc ajoutés au calcul, sinon il ne reste presque rien pour les chiffres. */
-/* saisie du numéro désactivée pour l'instant : le champ ne sert que d'affichage */
 .pager #pNum{box-sizing:border-box;min-width:0;text-align:center;font-size:14px;
-  font-weight:600;padding:5px 4px;pointer-events:none;background:transparent;
-  border-color:transparent;color:var(--text)}
+  font-weight:600;padding:5px 4px}
 .pager .tot{font-size:13px;font-weight:600;color:var(--muted);white-space:nowrap;
   margin-right:2px}
 .zlbl{font-family:var(--mono);width:46px;text-align:center;color:var(--muted);flex:0 0 auto}
@@ -189,7 +187,7 @@ aside.right{border-left:1px solid var(--line)}
 .pane-head{display:flex;align-items:center;gap:4px;padding:10px 12px;border-bottom:1px solid var(--line)}
 .pane-head h2{font-size:12px;margin:0;font-weight:600;flex:0 0 auto;min-width:0}
 .ver{font-family:var(--mono);font-size:10px;color:var(--muted);flex:0 0 auto}
-.pane-body{overflow:auto;padding:10px 12px;flex:1;-webkit-overflow-scrolling:touch}
+.pane-body{overflow:auto;padding:10px 12px;flex:1;-webkit-overflow-scrolling:touch;font-size:13.5px}
 .pane-foot{border-top:1px solid var(--line);padding:8px 12px;display:flex;gap:6px;
   padding-bottom:max(8px,env(safe-area-inset-bottom,0px))}
 #scrim{position:fixed;inset:0;background:rgba(8,10,18,.55);z-index:30;display:none}
@@ -270,10 +268,10 @@ html[data-theme="dark"] .item.hl-item, html[data-theme="system"]:not(.sys-light)
 /* ---------- inspecteur ---------- */
 .row{display:flex;gap:6px;align-items:flex-end}
 .row>*{flex:1;min-width:0}
-.chip{display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--muted);flex-wrap:wrap}
+.chip{display:flex;align-items:center;gap:5px;font-size:12.5px;color:var(--muted);flex-wrap:wrap}
 .list{display:flex;flex-direction:column;gap:4px;margin-top:6px;max-height:26vh;overflow:auto}
-.list .li{display:flex;align-items:center;gap:7px;padding:5px 6px;border:1px solid var(--line);
-  border-radius:var(--r);background:var(--field);cursor:pointer;font-size:12px}
+.list .li{display:flex;align-items:center;gap:7px;padding:6px;border:1px solid var(--line);
+  border-radius:var(--r);background:var(--field);cursor:pointer;font-size:13px}
 .list .li:hover{border-color:var(--ink)}
 .list .li.on{border-color:var(--ink);background:var(--ink-soft)}
 .list .li .t{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -373,7 +371,12 @@ button.rel.has .dot{display:block}
 .cp-pal[hidden]{display:none}
 /* Ligne de couleur commune aux deux fenêtres : pastilles rondes puis la
    pastille multicolore qui masque le sélecteur standard. */
-.crow{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-top:6px}
+/* La pastille multicolore est ancrée à droite ; les pastilles intermédiaires
+   occupent la place restante et le script masque celles qui ne tiennent pas. */
+.crow{display:flex;gap:7px;flex-wrap:nowrap;align-items:center;margin-top:6px;
+  overflow:hidden;min-width:0}
+.crow .cmid{display:flex;gap:7px;align-items:center;flex:1 1 auto;min-width:0;overflow:hidden}
+.crow-more{margin-left:auto}
 .crow button{width:25px;height:25px;min-height:25px;padding:0;border-radius:50%;
   border:1px solid var(--line)}
 .crow button.on{outline:2px solid var(--ink);outline-offset:2px}
@@ -401,10 +404,11 @@ body.kb-open .drophint{display:none}
 .mask.on{display:flex}
 .modal{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;
   width:min(580px,100%);max-height:86vh;overflow:auto;box-shadow:0 24px 70px rgba(0,0,0,.5)}
-.modal h3{margin:0 0 6px;font-size:16px}
+.modal{font-size:13.5px}
+.modal h3{margin:0 0 6px;font-size:17px}
 .modal h4{margin:16px 0 6px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
 .f .mini{min-height:20px;padding:0 7px;font-size:11px;margin-left:8px;vertical-align:middle}
-.modal p{margin:0 0 10px;color:var(--muted);line-height:1.55}
+.modal p{margin:0 0 10px;color:var(--muted);line-height:1.6;font-size:13px}
 .modal .foot{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;flex-wrap:wrap}
 .modal .foot .left{margin-right:auto}
 .steps{display:flex;flex-direction:column;gap:10px;margin:0 0 4px}
