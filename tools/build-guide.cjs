@@ -192,6 +192,29 @@ function mockComposer(x, yy, w){
   return h;
 }
 
+/* ------------------------------------------------- captures d'écran */
+const SHOTS = {};
+async function loadShots(){
+  const dir = path.join(__dirname, 'shots');
+  for(const f of fs.readdirSync(dir)){
+    if(!/\.png$/.test(f)) continue;
+    SHOTS[f.replace(/\.png$/, '')] = await doc.embedPng(fs.readFileSync(path.join(dir, f)));
+  }
+}
+/* Pose une capture à la largeur voulue et rend son rectangle, pour pouvoir
+   y placer ensuite des repères en coordonnées relatives. */
+function shot(name, x, yTop, w){
+  const img = SHOTS[name];
+  const h = w * img.height / img.width;
+  page.drawRectangle({x:x - 2, y:yTop - h - 2, width:w + 4, height:h + 4,
+    color:C.white, borderWidth:.8, borderColor:C.line});
+  page.drawImage(img, {x, y:yTop - h, width:w, height:h});
+  return {x, y:yTop - h, w, h, top:yTop};
+}
+const tagOn = (r, fx, fy, n) => tag(r.x + r.w*fx, r.top - r.h*fy, n);
+
+
+
 /* ===================================================================== */
 (async () => {
   doc = await PDFDocument.create();
@@ -203,6 +226,7 @@ function mockComposer(x, yy, w){
   doc.setTitle('EDITION PDF — Guide');
   doc.setAuthor('DW');
   doc.setSubject("Guide d'utilisation");
+  await loadShots();
 
   /* ---------------------------------------------------- 1. couverture */
   newPage();
@@ -211,9 +235,9 @@ function mockComposer(x, yy, w){
   page.drawText('EDITION PDF', {x:M, y:H - 150, size:38, font:bold, color:C.text});
   page.drawText("Signer, surligner et commenter un PDF", {x:M, y:H - 182, size:15, font:reg, color:C.soft});
   page.drawText("sans jamais l'envoyer nulle part", {x:M, y:H - 203, size:15, font:ital, color:C.ink});
-  y = H - 340;
-  mockApp(M, y - 210, W - M*2, 210);
-  y -= 250;
+  y = H - 336;
+  shot('main', (W - 230)/2, y, 230);
+  y -= 300;
   para("Ce guide présente l'application écran par écran, bouton par bouton, et se termine par "
      + "une série d'astuces qui font gagner du temps.", {size:11});
   y = 120;
@@ -249,22 +273,35 @@ function mockComposer(x, yy, w){
   /* ------------------------------------------------- 3. l'écran principal */
   newPage(); foot(3);
   h1("L'écran principal");
-  const m = mockApp(M, y - 236, W - M*2, 236);
-  // repères
-  tag(M + 12, y - 12, 1); tag(M + 92, y - 12, 2); tag(M + (W - M*2) - 14, y - 12, 3);
-  tag(M + 12, y - 34, 4); tag(M + (W - M*2) - 14, y - 34, 5);
-  tag(M + 26, y - 150, 6); tag(M + (W - M*2) - 30, y - 150, 7);
-  y -= 256;
-  legend([
-    [1, 'Panneaux', "Replient ou déploient la bibliothèque et les propriétés."],
-    [2, 'Nom du document', "Vide, un appui ouvre le sélecteur de fichiers."],
-    [3, 'Enregistrer, copier, fermer', "Génère le PDF, copie le récapitulatif des commentaires, ferme le document."],
-    [4, 'Navigation et zoom', "Page précédente et suivante, niveau de zoom, ajustement à l'écran."],
+  const r3 = shot('main', M, y, 236);
+  /* repères posés en coordonnées relatives à la capture */
+  tagOn(r3, 0.05, 0.055, 1);
+  tagOn(r3, 0.27, 0.055, 2);
+  tagOn(r3, 0.95, 0.055, 3);
+  tagOn(r3, 0.05, 0.165, 4);
+  tagOn(r3, 0.95, 0.165, 5);
+  tagOn(r3, 0.22, 0.86,  6);
+  /* légende à droite de la capture */
+  let ylg = y - 6;
+  const lgx = M + 236 + 24, lgw = W - M - lgx;
+  for(const [n, label, desc] of [
+    [1, 'Panneaux et ouverture', "Bibliothèque, sélecteur de fichiers, nom du document, fermeture."],
+    [2, 'Nom du document', "Vide, un appui ouvre le sélecteur."],
+    [3, 'Copier, enregistrer, propriétés', "Récapitulatif des commentaires, génération du PDF, panneau de droite."],
+    [4, 'Navigation et zoom', "Pages, numéro courant, ajustement à l'écran."],
     [5, 'Outils', "Annuler, rétablir, texte, surligneur, commentaire."],
-    [6, 'Bibliothèque', "Vos signatures et images, prêtes à poser."],
-    [7, 'Propriétés', "L'élément sélectionné, la liste des éléments, et l'accès aux réglages."]
-  ], true);
-
+    [6, 'Le document', "Vos ajouts s'y posent ; ici un texte incliné."]
+  ]){
+    tag(lgx + 7, ylg + 3.2, n);
+    page.drawText(label, {x:lgx + 20, y:ylg, size:9.5, font:bold, color:C.text});
+    ylg -= 12.5;
+    for(const l of wrap(desc, reg, 9, lgw - 20)){
+      page.drawText(l, {x:lgx + 20, y:ylg, size:9, font:reg, color:C.soft}); ylg -= 11.6;
+    }
+    ylg -= 7;
+  }
+  y = Math.min(ylg, y - r3.h - 16);
+  y -= 6;
   h2('Poser un élément');
   bullet("Une signature : touchez sa vignette dans la bibliothèque, elle se pose au centre de la page.");
   bullet("Du texte : bouton T, saisissez, avec insertion possible de la date, de l'heure ou des deux.");
@@ -282,12 +319,15 @@ function mockComposer(x, yy, w){
      + "Il n'est pas modal — le document reste défilable et zoomable pendant que vous écrivez, et le "
      + "cadre lui-même reste déplaçable.");
   y -= 4;
-  const ch = mockComposer(M, y - 74, W - M*2);
-  /* repères posés au-dessus du panneau, pour ne rien recouvrir */
-  tag(M + 18, y + 4, 1); tag(M + 40, y + 4, 2);
-  tag(M + (W - M*2) - 17, y + 4, 3);
-  tag(M + (W - M*2) - 80, y + 4, 4);
-  y -= 74 + 16;
+  const r4 = shot('composer', M, y, 232);
+  tagOn(r4, 0.09, 0.80, 1);
+  tagOn(r4, 0.28, 0.80, 2);
+  tagOn(r4, 0.57, 0.80, 4);
+  tagOn(r4, 0.92, 0.80, 3);
+  const r4b = shot('author', M + 232 + 20, y, 150);
+  page.drawText("L'engrenage ouvre la saisie de l'auteur.",
+    {x:M + 232 + 20, y:y - r4b.h - 12, size:8.5, font:ital, color:C.soft});
+  y -= Math.max(r4.h, r4b.h) + 18;
   legend([
     [1, 'Couleur', "Ouvre la ligne de couleurs : noir, couleur courante, vos dernières, les primaires, puis le sélecteur du système."],
     [2, 'Incl. source', "Joint à la note une image du passage encadré, à sa taille d'origine."],
@@ -311,6 +351,11 @@ function mockComposer(x, yy, w){
   para("Elle conserve vos signatures d'une session à l'autre, dans votre navigateur. Trois façons "
      + "de l'alimenter : importer une image, dessiner directement au doigt ou au stylet, ou charger "
      + "un fichier de bibliothèque chiffré.");
+  const r5a = shot('library', M, y, 176);
+  const r5b = shot('draw', M + 176 + 22, y, 176);
+  page.drawText("La bibliothèque et ses vignettes", {x:M, y:y - r5a.h - 12, size:8.5, font:ital, color:C.soft});
+  page.drawText("Dessiner une signature au doigt", {x:M + 176 + 22, y:y - r5b.h - 12, size:8.5, font:ital, color:C.soft});
+  y -= Math.max(r5a.h, r5b.h) + 28;   // la plus haute des deux commande la suite
   h2('Les actions de chaque vignette');
   legend([
     [1, 'Poser', "Un appui sur l'image la place sur la page courante."],
@@ -337,6 +382,11 @@ function mockComposer(x, yy, w){
      + "page. Il porte aussi la liste de tous les éléments posés, avec une pastille indiquant leur "
      + "nature — T pour un texte, un trait jaune pour un surlignage, un crayon pour un commentaire, "
      + "la vignette pour une image — et une corbeille par ligne.");
+  const r6a = shot('props', M, y, 170);
+  const r6b = shot('settings', M + 170 + 22, y, 170);
+  page.drawText("Les propriétés de l'élément choisi", {x:M, y:y - r6a.h - 12, size:8.5, font:ital, color:C.soft});
+  page.drawText("Les réglages de l'application", {x:M + 170 + 22, y:y - r6b.h - 12, size:8.5, font:ital, color:C.soft});
+  y -= Math.max(r6a.h, r6b.h) + 28;
   h2('Les réglages');
   legend([
     [1, 'Langue et thème', "Sept langues, et un thème clair, sombre ou accordé au système."],

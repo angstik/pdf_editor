@@ -107,9 +107,9 @@ Installable sur ordinateur et sur mobile (Android / iOS), utilisable hors ligne.
 - **Bouton de mise à jour** dans les réglages : il interroge le service worker, active la version
   en attente et recharge, au lieu d'attendre la fermeture de tous les onglets.
 - **Guide embarqué** : `assets/help/guide-fr.pdf`, huit pages générées par `tools/build-guide.cjs`,
-  ouvertes dans l'application depuis les réglages. Les illustrations sont des reproductions
-  schématiques de l'interface, dessinées par le générateur : elles suivent les évolutions du
-  produit là où des captures d'écran se périmeraient.
+  ouvertes dans l'application depuis les réglages. Les illustrations sont de véritables captures d'écran,
+  recadrées et réduites en palette indexée par `tools/shots/`, annotées de repères numérotés posés
+  en coordonnées relatives, de sorte qu'un remplacement de capture ne déplace pas les légendes.
 - **Partage de l'adresse de l'application** et **fenêtre de licence** listant les composants.
 - **Saisie des commentaires par panneau non modal**, posé sous le document : le cadre est créé
   dès le tracé, le document reste défilable et zoomable pendant la saisie, et le texte est
