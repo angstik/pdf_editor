@@ -1,4 +1,4 @@
-# Journal des livraisons
+# Journal des livraisons. 
 
 Chaque entrée porte pour titre la version suivie d'une synthèse courte, et reprend
 le texte de livraison correspondant.
