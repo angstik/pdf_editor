@@ -398,6 +398,16 @@ body.kb-open #composer{gap:4px;padding:6px}
 body.kb-open #composer .edit{min-height:46px}
 body.kb-open .drophint{display:none}
 
+/* ---------- éléments appartenant à un autre participant ---------- */
+.item.foreign{cursor:default}
+.item.foreign .cmt-box{border-style:dashed}
+.item.foreign::after{content:attr(data-who);position:absolute;left:0;top:-15px;
+  font-size:9px;font-weight:700;letter-spacing:.3px;color:#fff;background:var(--cc,#666);
+  padding:1px 5px;border-radius:3px;pointer-events:none;white-space:nowrap}
+.list .li.foreign{opacity:.72}
+.who{font-family:var(--mono);font-size:10px;font-weight:700;padding:1px 5px;border-radius:3px;
+  color:#fff;background:var(--ink);flex:0 0 auto}
+
 /* ---------- modales ---------- */
 .mask{position:fixed;inset:0;background:rgba(6,7,12,.72);display:none;align-items:center;
   justify-content:center;z-index:60;padding:14px}

@@ -19,7 +19,7 @@ const bind = (ids, fn)=> ids.forEach(id=>{ const el=$(id); if(el) el.onclick = f
 
 let toastT;
 let deferredPrompt = null;   // requête d'installation PWA, captée plus bas
-const APP_VERSION = 'v1.0.1-multi';
+const APP_VERSION = 'v1.1-multi';
 const APP_URL = 'https://angstik.github.io/pdf_editor/multi/';
 /* Saisie flottante des commentaires : fonction en cours de mise au point,
    désactivée par défaut. */
@@ -910,6 +910,7 @@ const Doc = {
   bytes:null, name:'', pdf:null, page:1, total:0,
   scale:1, viewport:null, autoFit:true,
   vp1:new Map(), rot:new Map(), text:new Map(), mode:null, cmtOffset:0, dirty:false,
+  peers:{}, tombs:[], sha:null,
   items:[], sel:null, undo:[], redo:[], renderTask:null, rt:null
 };
 
@@ -1015,7 +1016,8 @@ async function loadPdf(file){
     Doc.bytes = buf;
     Doc.pdf   = await pdfjsLib.getDocument({data: buf.slice(0), isEvalSupported:false}).promise;
     Object.assign(Doc, {name:file.name, total:Doc.pdf.numPages, page:1,
-                        items:[], sel:null, undo:[], redo:[], autoFit:true, dirty:false});
+                        items:[], sel:null, undo:[], redo:[], autoFit:true, dirty:false,
+                        peers:{}, tombs:[], sha:null});
     Doc.vp1.clear(); Doc.rot.clear(); Doc.text.clear(); shotCache.clear();
     setMode(null);
     setDocName(file.name);
@@ -1027,6 +1029,7 @@ async function loadPdf(file){
     await fitPage();
     toast(t('t.docLoaded',{n:Doc.total}),'ok');
     scanComments();
+    docHash(buf).then(h => { Doc.sha = h; }).catch(()=>{});
     sessionSave(true);
   }catch(err){ console.error(err); toast(t('t.readFail',{e:err.message}),'err'); }
 }
@@ -1046,7 +1049,8 @@ function closeDoc(){
 }
 function doCloseDoc(){
   Object.assign(Doc, {pdf:null, bytes:null, name:'', page:1, total:0,
-    items:[], sel:null, undo:[], redo:[], viewport:null, autoFit:true, cmtOffset:0, dirty:false});
+    items:[], sel:null, undo:[], redo:[], viewport:null, autoFit:true, cmtOffset:0, dirty:false,
+    peers:{}, tombs:[], sha:null});
   Doc.vp1.clear(); Doc.rot.clear(); Doc.text.clear(); shotCache.clear();
   setMode(null); closeComposer();
   $('#stage').hidden = true; $('#hint').hidden = false; $('#btnClose').hidden = true;
@@ -1104,6 +1108,231 @@ function sizePageField(){
   el.style.width = `calc(${d}ch + 17px)`;
   el.maxLength = d;
 }
+
+
+/* =====================================================================
+   Annotations partagées
+
+   Modèle : chaque élément porte l'identifiant de son auteur et un numéro
+   d'ordre attribué à la création, jamais réattribué. L'étiquette affichée
+   est « initiales-numéro », par exemple DWE-1, et reste donc stable quoi
+   qu'il arrive plus haut dans le document. Chacun n'est maître que de ses
+   propres éléments.
+
+   Fusion : union par identifiant, la version au compteur logique le plus
+   élevé l'emporte, les suppressions laissent une pierre tombale. Comme
+   personne ne modifie les éléments d'un autre, le seul cas de concurrence
+   est un même auteur travaillant depuis deux appareils.
+
+   Collision d'initiales : les étiquettes sont recalculées à chaque fusion,
+   par ordre d'identifiant, de façon déterministe — le résultat ne dépend
+   donc pas de l'ordre dans lequel les fichiers ont été importés.
+   ------------------------------------------------------------------ */
+const ANN_MAGIC = 'PDFED-ANN-1';
+const SHARED = ['text', 'highlight', 'comment'];   // les images ne circulent pas
+
+/* « want » est le choix de l'utilisateur, conservé tel quel ; « tag » est
+   l'étiquette effectivement affichée, recalculée à chaque fusion. Les
+   confondre figerait la résolution d'une collision passagère. */
+const Me = {
+  id: null, want: null, tag: null,
+  load(){
+    try{
+      const m = JSON.parse(localStorage.getItem('pdfed.me') || 'null');
+      if(m && m.id && (m.want || m.tag)){
+        this.id = m.id;
+        this.want = normTag(m.want || m.tag);
+        this.tag = this.want;
+      }
+    }catch(e){}
+    return !!this.id;
+  },
+  save(tag){
+    this.id = this.id || uid() + uid();
+    this.want = normTag(tag);
+    this.tag = this.want;
+    localStorage.setItem('pdfed.me', JSON.stringify({id:this.id, want:this.want}));
+  }
+};
+const normTag = t => String(t || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3) || 'MOI';
+const clockNext = ()=>{
+  const c = (parseInt(localStorage.getItem('pdfed.clock') || '0', 10) || 0) + 1;
+  localStorage.setItem('pdfed.clock', String(c));
+  return c;
+};
+const clockSeen = c => {
+  const cur = parseInt(localStorage.getItem('pdfed.clock') || '0', 10) || 0;
+  if(c > cur) localStorage.setItem('pdfed.clock', String(c));
+};
+/* numéro d'ordre propre à l'auteur, attribué une fois pour toutes */
+function nextSeq(){
+  const mine = Doc.items.filter(i => i.au === Me.id && typeof i.seq === 'number');
+  return (mine.length ? Math.max(...mine.map(i => i.seq)) : 0) + 1;
+}
+function stamp(it){
+  it.au = Me.id;
+  it.seq = it.seq || nextSeq();
+  it.c = clockNext();
+  it.t = Date.now();
+  return it;
+}
+const isMine = it => !it.au || it.au === Me.id;
+/* Un élément partageable est marqué dès sa création ; les images, qui ne
+   circulent pas, restent anonymes. */
+function stampNew(it){
+  if(!SHARED.includes(it.type)) return it;
+  if(!Me.id) Me.load();
+  if(!Me.id) Me.save('MOI');
+  return stamp(it);
+}
+const tagOf = au => (au === Me.id ? Me.tag : (Doc.peers[au] && Doc.peers[au].tag)) || '??';
+const labelOf = it => it.seq ? tagOf(it.au) + '-' + it.seq : '';
+
+/* Étiquettes recalculées pour tout le monde, de façon déterministe : à
+   initiales égales, le plus petit identifiant garde la forme pleine, les
+   suivants voient leur troisième caractère remplacé par un chiffre. */
+function resolveTags(){
+  const all = [{id: Me.id, want: Me.want || Me.tag, me: true}];
+  for(const [id, p] of Object.entries(Doc.peers)) all.push({id, want: p.want || p.tag});
+  const groups = {};
+  for(const a of all) (groups[a.want] = groups[a.want] || []).push(a);
+  for(const [want, list] of Object.entries(groups)){
+    list.sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+    list.forEach((a, i) => {
+      let tag = want;
+      if(i > 0){
+        const d = i + 1 <= 9 ? String(i + 1) : 'x';
+        tag = want.length >= 3 ? want.slice(0, 2) + d : want + d;
+      }
+      if(a.me) Me.tag = tag; else Doc.peers[a.id].tag = tag;
+    });
+  }
+}
+
+/* --- identité ------------------------------------------------------- */
+function askIdentity(then){
+  modal(`<h3>${esc(t('ann.me'))}</h3><p>${esc(t('ann.meHint'))}</p>
+    <input type="text" id="meTag" value="${esc(Me.want || Me.tag || '')}" maxlength="3"
+           autocapitalize="characters" autocomplete="off" spellcheck="false"
+           style="text-transform:uppercase;font-family:var(--mono);font-size:18px;text-align:center">
+    <div class="foot"><button data-close>${esc(t('m.cancel'))}</button>
+      <button class="primary" id="meOk">${esc(t('m.ok'))}</button></div>`);
+  $('#meTag').select();
+  $('#meOk').onclick = ()=>{
+    const v = normTag($('#meTag').value);
+    if(v.length < 2) return;
+    Me.save(v); resolveTags(); closeModal(); drawItems();
+    if(then) then();
+  };
+}
+const withIdentity = fn => Me.load() ? fn() : askIdentity(fn);
+
+/* --- empreinte du document ------------------------------------------ */
+async function docHash(bytes){
+  const h = await crypto.subtle.digest('SHA-256', bytes.slice(0));
+  return [...new Uint8Array(h)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+/* --- fichier d'annotations ------------------------------------------ */
+function annExport(){
+  const peers = {};
+  for(const [id, p] of Object.entries(Doc.peers)) peers[id] = {tag: p.tag, want: p.want || p.tag};
+  peers[Me.id] = {tag: Me.tag, want: Me.want || Me.tag};
+  const items = Doc.items
+    .filter(i => SHARED.includes(i.type) || i.deleted)
+    .map(i => {
+      const o = {...i};
+      delete o.assetId; delete o.name;
+      if(isMine(o)) { o.c = clockNext(); o.t = Date.now(); }
+      return o;
+    })
+    .concat(Doc.tombs || []);
+  return {magic: ANN_MAGIC, v: 1,
+    doc: {sha256: Doc.sha || null, name: Doc.name, pages: Doc.total},
+    authors: peers, items};
+}
+/* Fusion silencieuse : union par identifiant, compteur logique le plus
+   élevé, puis horodatage, puis identifiant d'auteur pour départager. */
+function annMerge(pack){
+  let added = 0;
+  for(const [id, p] of Object.entries(pack.authors || {})){
+    if(id === Me.id) continue;
+    Doc.peers[id] = Doc.peers[id] || {};
+    Doc.peers[id].want = normTag(p.want || p.tag);
+    Doc.peers[id].tag  = Doc.peers[id].tag || Doc.peers[id].want;
+  }
+  resolveTags();
+  const byId = new Map(Doc.items.map(i => [i.id, i]));
+  const tombs = new Map((Doc.tombs || []).map(i => [i.id, i]));
+  for(const inc of pack.items || []){
+    if(!inc || !inc.id) continue;
+    if(inc.au === Me.id){ clockSeen(inc.c || 0); continue; }   // mes propres éléments font foi ici
+    clockSeen(inc.c || 0);
+    if(inc.deleted){
+      tombs.set(inc.id, inc);
+      if(byId.has(inc.id)){ Doc.items = Doc.items.filter(x => x.id !== inc.id); byId.delete(inc.id); }
+      continue;
+    }
+    if(tombs.has(inc.id)) continue;
+    const cur = byId.get(inc.id);
+    if(!cur){ Doc.items.push(inc); byId.set(inc.id, inc); added++; continue; }
+    const newer = (inc.c || 0) !== (cur.c || 0) ? (inc.c || 0) > (cur.c || 0)
+                : (inc.t || 0) !== (cur.t || 0) ? (inc.t || 0) > (cur.t || 0)
+                : String(inc.au) > String(cur.au);
+    if(newer) Object.assign(cur, inc);
+  }
+  Doc.tombs = [...tombs.values()];
+  return added;
+}
+
+$('#btnAnn').onclick = ()=> withIdentity(()=>{
+  const list = Object.entries(Doc.peers);
+  modal(`<h3>${esc(t('ann.title'))}</h3>
+    <div class="chip" style="margin-bottom:10px">
+      ${esc(t('ann.me'))} : <span class="who">${esc(Me.tag)}</span>
+      <button id="annMe" class="mini">${esc(t('insp.editText'))}</button></div>
+    ${list.length ? `<label class="f">${esc(t('ann.authors'))}</label>
+      <div class="chip">${list.map(([, p]) => `<span class="who">${esc(p.tag)}</span>`).join(' ')}</div>` : ''}
+    <div class="stack" style="margin-top:12px">
+      <button class="primary" id="annSave">${esc(t('ann.save'))}</button>
+      <button id="annLoad">${esc(t('ann.load'))}</button>
+    </div>
+    <div class="foot"><button data-close>${esc(t('m.close'))}</button></div>`);
+  $('#annMe').onclick   = ()=> askIdentity();
+  $('#annSave').onclick = annSaveFile;
+  $('#annLoad').onclick = ()=>{ closeModal(); $('#fileAnn').click(); };
+});
+
+async function annSaveFile(){
+  if(!Doc.pdf){ toast(t('t.noDoc'), 'err'); return; }
+  const pack = annExport();
+  const n = pack.items.filter(i => !i.deleted).length;
+  closeModal();
+  const base = Doc.name.replace(/\.pdf$/i, '') + '-' + Me.tag + '.json';
+  await saveFile(new Blob([JSON.stringify(pack)], {type:'application/json'}), base);
+  toast(t('t.annSaved', {n}), 'ok');
+}
+
+$('#fileAnn').onchange = async e=>{
+  const files = [...e.target.files]; e.target.value = '';
+  if(!files.length || !Doc.pdf) return;
+  withIdentity(async ()=>{
+    let total = 0, foreign = false;
+    for(const f of files){
+      let pack;
+      try{ pack = JSON.parse(await f.text()); }catch(err){ toast(t('t.annBadFile'), 'err'); continue; }
+      if(!pack || pack.magic !== ANN_MAGIC){ toast(t('t.annBadFile'), 'err'); continue; }
+      if(Doc.sha && pack.doc && pack.doc.sha256 && pack.doc.sha256 !== Doc.sha){
+        foreign = true;
+        if(!confirm(t('t.annOtherDoc'))) continue;
+      }
+      snapshot();
+      total += annMerge(pack);
+    }
+    drawItems();
+    toast(t('t.annLoaded', {n: total}), foreign ? 'err' : 'ok');
+  });
+};
 
 /* ---------------------------------------------------------------------
    Reprise de session
@@ -1415,7 +1644,11 @@ viewer.addEventListener('wheel', e=>{
 const snap = ()=> JSON.stringify({i:Doc.items, s:Doc.sel});
 function restore(json){
   const st = JSON.parse(json);
-  Doc.items = st.i; Doc.sel = st.s;
+  /* l'instantané ne rejoue que mes éléments : annuler ne doit pas défaire
+     le travail d'un autre participant arrivé entre-temps */
+  const theirs = Doc.items.filter(i => !isMine(i));
+  Doc.items = st.i.filter(i => isMine(i)).concat(theirs);
+  Doc.sel = st.s;
   const it = Doc.items.find(x=>x.id===Doc.sel);
   if(it && it.page!==Doc.page){ Doc.page=it.page; renderPage(); } else drawItems();
 }
@@ -1496,8 +1729,8 @@ function placeText(txt){
   if(!Doc.pdf){ toast(t('t.openFirst'),'err'); return; }
   const vp1 = Doc.vp1.get(Doc.page);
   snapshot();
-  const it = {id:uid(), page:Doc.page, type:'text', text:txt, font:DEFAULT_FONT, size:14,
-    bold:false, italic:false, color:'#111133', x:0, y:0, w:0, h:0, rot:0, opacity:1, locked:false};
+  const it = stampNew({id:uid(), page:Doc.page, type:'text', text:txt, font:DEFAULT_FONT, size:14,
+    bold:false, italic:false, color:'#111133', x:0, y:0, w:0, h:0, rot:0, opacity:1, locked:false});
   const m = measureText(it); it.w=m.w; it.h=m.h;
   it.x=(vp1.width-it.w)/2; it.y=(vp1.height-it.h)/2;
   Doc.items.push(it); Doc.sel=it.id; drawItems();
@@ -1545,7 +1778,13 @@ function commentsInOrder(){
   return Doc.items.filter(i=>i.type==='comment')
     .slice().sort((a,b)=> a.page-b.page || a.y-b.y || a.x-b.x);
 }
-const cmtNumber = id => Doc.cmtOffset + commentsInOrder().findIndex(i=>i.id===id) + 1;
+/* Le numéro ne dépend plus du rang dans le document : il est attribué à la
+   création et préfixé des initiales de son auteur. Citer « DWE-4 » reste
+   donc valable même si quelqu'un insère un commentaire plus haut. */
+const cmtNumber = id => {
+  const it = Doc.items.find(i => i.id === id);
+  return it ? (labelOf(it) || '?') : '?';
+};
 
 async function drawItems(){
   const layer = $('#layer');
@@ -1554,8 +1793,11 @@ async function drawItems(){
     layer.innerHTML = '';
     for(const it of Doc.items.filter(i=>i.page===Doc.page)){
       const el = document.createElement('div');
-      el.className = 'item' + (it.id===Doc.sel?' sel':'') + (it.locked?' locked':'');
+      const mine = isMine(it);
+      el.className = 'item' + (it.id===Doc.sel?' sel':'') + (it.locked?' locked':'')
+                   + (mine ? '' : ' foreign locked');
       el.dataset.id = it.id;
+      if(!mine){ el.dataset.who = tagOf(it.au); el.style.setProperty('--cc', it.color || '#666'); }
       el.style.cssText = `left:${it.x*s}px;top:${it.y*s}px;width:${it.w*s}px;height:${it.h*s}px;
         transform:rotate(${-it.rot}deg);opacity:${it.opacity}`;
       if(it.type==='comment'){
@@ -1585,7 +1827,7 @@ async function drawItems(){
         d.style.color = it.color; d.textContent = it.text;
         el.appendChild(d);
       }
-      if(it.id===Doc.sel){
+      if(it.id===Doc.sel && mine){
         const del=document.createElement('div');
         del.className='handle h-del'; del.dataset.h='del'; del.textContent='🗑';
         del.title = t('insp.delete');
@@ -1616,6 +1858,7 @@ $('#layer').addEventListener('dblclick', e=>{
     const c = Doc.items.find(i=>i.id===host.dataset.id);
     if(c && c.type==='comment' && !c.locked){
       e.preventDefault();
+      if(!isMine(c)){ toast(t('t.notMine', {who: tagOf(c.au)})); return; }
       return openComposer(c, false);
     }
   }
@@ -1637,6 +1880,7 @@ $('#layer').addEventListener('pointerdown', e=>{
 
   if(mode==='del'){ e.preventDefault(); removeItem(it.id); return; }
   if(Doc.sel!==it.id){ Doc.sel=it.id; drawItems(); }
+  if(!isMine(it)){ toast(t('t.notMine', {who: tagOf(it.au)})); return; }
   if(it.locked) return;
 
   e.preventDefault();
@@ -1890,6 +2134,7 @@ function addComment(r){
     shot: SHOT_ON(),                 // coche initialisée par le réglage général
     author: localStorage.getItem('pdfed.author') || '',
     text:'', opacity:1, locked:false};
+  stampNew(it);
   /* le cadre est posé tout de suite : on le voit et on peut le déplacer
      pendant la saisie, le panneau ne masquant presque rien */
   snapshot();
@@ -1898,8 +2143,8 @@ function addComment(r){
 }
 /* Saisie du texte. À la création, un commentaire vide est simplement abandonné. */
 function hlItem(r, color){
-  return {id:uid(), page:Doc.page, type:'highlight', color, opacity:0.45,
-          x:r.x, y:r.y, w:r.w, h:r.h, rot:0, locked:false};
+  return stampNew({id:uid(), page:Doc.page, type:'highlight', color, opacity:0.45,
+          x:r.x, y:r.y, w:r.w, h:r.h, rot:0, locked:false});
 }
 
 function quickUpdate(it){
@@ -1916,7 +2161,15 @@ function quickUpdate(it){
   const pos=$('#posInfo'); if(pos) pos.textContent = fmtPos(it);
 }
 function removeItem(id){
+  const it = Doc.items.find(i => i.id === id);
+  if(it && !isMine(it)){ toast(t('t.notMine', {who: tagOf(it.au)}), 'err'); return; }
   snapshot();
+  /* la suppression doit voyager : sans trace, une fusion ultérieure
+     ressusciterait l'élément depuis le fichier d'un autre participant */
+  if(it && SHARED.includes(it.type) && it.au){
+    Doc.tombs = (Doc.tombs || []).filter(x => x.id !== id);
+    Doc.tombs.push({id, au: it.au, seq: it.seq, deleted: true, c: clockNext(), t: Date.now()});
+  }
   Doc.items = Doc.items.filter(i=>i.id!==id);
   if(Doc.sel===id) Doc.sel=null;
   drawItems();
@@ -1955,7 +2208,7 @@ function renderInspector(){
     box.innerHTML = `<div class="empty">${esc(Doc.pdf ? t('insp.emptyDoc') : t('insp.emptyNoDoc'))}</div>`;
     return;
   }
-  const dis = it.locked ? 'disabled' : '';
+  const dis = (it.locked || !isMine(it)) ? 'disabled' : '';
   const specific = it.type==='comment' ? `
     <div class="chip" style="margin-bottom:8px">${esc(t('exp.page'))} ${it.page} · n° ${cmtNumber(it.id)}</div>
     <label class="f">${esc(t('insp.commentText'))}</label>
@@ -2003,6 +2256,7 @@ function renderInspector(){
 
   box.innerHTML = `
     <div class="chip" style="margin-bottom:6px">
+      ${isMine(it) ? '' : `<span class="who">${esc(tagOf(it.au))}</span>`}
       ${esc(it.type==='image' ? t('insp.image')+' · '+(it.name||'')
             : it.type==='highlight' ? t('insp.highlight')
             : it.type==='comment' ? t('insp.comment') : t('insp.textType'))}
@@ -2095,7 +2349,7 @@ function renderItemList(){
     : it.type==='text' ? '<span class="ty">T</span>'
     : `<span class="ty" data-img="${it.assetId}"></span>`;
   l.innerHTML = Doc.items.map(it=>`
-    <div class="li${it.id===Doc.sel?' on':''}" data-id="${it.id}">
+    <div class="li${it.id===Doc.sel?' on':''}${isMine(it)?'':' foreign'}" data-id="${it.id}">
       ${badge(it)}
       <span class="mono">${it.page}</span>
       <span class="t">${esc(it.type==='image' ? (it.name||t('insp.image'))
@@ -2103,7 +2357,8 @@ function renderItemList(){
         : it.type==='comment' ? cmtNumber(it.id)+'. '+String(it.text||'').split('\n')[0].slice(0,20)
         : String(it.text||'').split('\n')[0].slice(0,24))}</span>
       <span class="badge${it.locked?' ok':''}">${it.locked?'✓':'·'}</span>
-      <button class="del" data-del="${it.id}" title="${esc(t('insp.delete'))}">🗑</button>
+      ${isMine(it) ? `<button class="del" data-del="${it.id}" title="${esc(t('insp.delete'))}">🗑</button>`
+                   : `<span class="who">${esc(tagOf(it.au))}</span>`}
     </div>`).join('');
   /* vignette de l'image dans la pastille de type */
   $$('#itemList .ty[data-img]').forEach(async el=>{
@@ -2420,7 +2675,18 @@ async function buildComments(out, pages, getFont){
   } else { annex = newAnnex(); y = H - 104; }
   const dests = [];
 
-  const num = i => Doc.cmtOffset + i + 1;
+  const num = i => labelOf(list[i]) || String(i + 1);
+  /* La pastille n'est plus un simple chiffre : elle porte « XXX-n ». Un
+     disque ne suffit plus, on dessine une gélule ajustée au texte. */
+  const pill = (pg, cx, cy, txt, color)=>{
+    const size = 9, w = bold.widthOfTextAtSize(txt, size), r = 8.5;
+    const bw = Math.max(0, w - 2);
+    pg.drawCircle({x: cx - bw/2, y: cy, size: r, color});
+    pg.drawCircle({x: cx + bw/2, y: cy, size: r, color});
+    if(bw > 0) pg.drawRectangle({x: cx - bw/2, y: cy - r, width: bw, height: r*2, color});
+    pg.drawText(txt, {x: cx - w/2, y: cy - 3.2, size, font: bold, color: rgb(1,1,1)});
+    return w + 2*r;
+  };
   /* Copie du passage : rendue avant la mise en page, pour connaître sa hauteur. */
   const shots = [];
   if(Doc.pdf){
@@ -2441,12 +2707,12 @@ async function buildComments(out, pages, getFont){
     const need  = 34 + (sh ? sh.h + 10 : 0) + lines.length*14 + 34 + 30;
     if(y - need < 64){ annex = newAnnex(); y = H - 104; }
     const c = hexRgb(it.color);
-    annex.drawCircle({x:MA+9, y:y+4, size:9.5, color:c});
-    annex.drawText(String(num(i)), {x:MA+6.2, y:y+.6, size:10, font:bold, color:rgb(1,1,1)});
+    const lw = pill(annex, MA + 9 + bold.widthOfTextAtSize(String(num(i)), 9)/2, y + 4, String(num(i)), c);
     const titre = `${t('exp.page')} ${it.page}${it.author ? '  ·  '+it.author : ''}`;
-    annex.drawText(titre, {x:MA+28, y:y, size:10.5, font:bold, color:rgb(.12,.13,.2)});
+    annex.drawText(titre, {x:MA+28+lw, y:y, size:10.5, font:bold, color:rgb(.12,.13,.2)});
     /* première ligne soulignée, comme dans le récapitulatif copié */
-    annex.drawLine({start:{x:MA+28, y:y-3}, end:{x:MA+28+bold.widthOfTextAtSize(titre,10.5), y:y-3},
+    annex.drawLine({start:{x:MA+28+lw, y:y-3},
+      end:{x:MA+28+lw+bold.widthOfTextAtSize(titre,10.5), y:y-3},
       thickness:.7, color:rgb(.12,.13,.2)});
     y -= 18;
     if(sh){
@@ -2471,6 +2737,7 @@ async function buildComments(out, pages, getFont){
   annex.node.set(K_Y, PDFNumber.of(Math.round(y)));   // reprise au prochain passage
 
   /* --- marques sur les pages, annotations, aller-retour ------------------ */
+  const placed = [];
   list.forEach((it,i)=>{
     const page = pages[it.page-1]; if(!page) return;
     const vp1 = Doc.vp1.get(it.page), pageRot = Doc.rot.get(it.page) || 0;
@@ -2485,9 +2752,13 @@ async function buildComments(out, pages, getFont){
     page.drawRectangle({x:ll.x, y:ll.y, width:it.w, height:it.h,
       color:c, opacity:0.06, borderWidth:1.4, borderColor:c,
       rotate:degrees(ll.theta)});
-    page.drawCircle({x:badge.x, y:badge.y, size:9.5, color:c});
     const nStr = String(num(i));
-    page.drawText(nStr, {x:badge.x - 2.9*nStr.length, y:badge.y-3.6, size:10, font:bold, color:rgb(1,1,1)});
+    /* deux cadres voisins verraient leurs pastilles se recouvrir : on les
+       décale verticalement, de quoi rester toutes deux touchables */
+    let by = badge.y;
+    for(const p of placed) if(Math.abs(p.x - badge.x) < 26 && Math.abs(p.y - by) < 20) by = p.y - 22;
+    placed.push({x: badge.x, y: by});
+    const pw = pill(page, badge.x, by, nStr, c);
 
     const A = annotsOf(page), d = dests[i];
     const bbox = [Math.min(ul.x,ur.x,ll.x,lr.x), Math.min(ul.y,ur.y,ll.y,lr.y),
@@ -2503,7 +2774,7 @@ async function buildComments(out, pages, getFont){
     /* la pastille, isolée dans la marge, mène à la même note */
     A.push(ctx.register(ctx.obj({
       Type:'Annot', Subtype:'Link', F:4,
-      Rect: ctx.obj([badge.x-11, badge.y-11, badge.x+11, badge.y+11]),
+      Rect: ctx.obj([badge.x - pw/2 - 2, by - 11, badge.x + pw/2 + 2, by + 11]),
       Border: ctx.obj([0,0,0]), A: goTo(d.annex.ref, d.top)
     })));
     /* Note autocollante dans la marge, toujours 28 points sous la pastille.
