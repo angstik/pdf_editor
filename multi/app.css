@@ -398,6 +398,11 @@ body.kb-open #composer{gap:4px;padding:6px}
 body.kb-open #composer .edit{min-height:46px}
 body.kb-open .drophint{display:none}
 
+/* compteur de participants sur le bouton de partage */
+#btnAnn.has .dot{display:flex;align-items:center;justify-content:center;
+  width:13px;height:13px;top:1px;right:1px;font-size:8px;font-weight:700;color:#fff}
+#btnAnn.has .dot::after{content:attr(data-n)}
+
 /* ---------- éléments appartenant à un autre participant ---------- */
 .item.foreign{cursor:default}
 .item.foreign .cmt-box{border-style:dashed}

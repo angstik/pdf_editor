@@ -310,6 +310,7 @@ function showSettingsModal(){
       <label class="f">${esc(t('nav.language'))}</label>
       <div class="row"><button id="setLangBtn" style="justify-content:flex-start;gap:8px">
         ${flagSvg(LANG)}<span>${esc((LANGS.find(l=>l.code===LANG)||{}).label||LANG)}</span></button></div>
+      <label class="f"><input type="checkbox" id="setAnnSilent" ${ANN_SILENT()?'checked':''}>${esc(t('ann.silent'))}</label>
       <label class="f"><input type="checkbox" id="setNote" ${NOTE_ON()?'checked':''}>${esc(t('insp.marginNote'))}</label>
       <label class="f"><input type="checkbox" id="setAnnex1" ${ANNEX_1ST()?'checked':''}>${esc(t('insp.annexFirst'))}</label>
       <label class="f"><input type="checkbox" id="setShot" ${SHOT_ON()?'checked':''}>${esc(t('insp.shot'))}</label>
@@ -335,6 +336,7 @@ function showSettingsModal(){
     <div class="foot"><button class="primary" id="setDone">${esc(t('m.close'))}</button></div>`);
   $('#setDone').onclick = ()=>{ closeModal(); togglePane('insp', false); };
   $$('#themeSeg button').forEach(b=> b.onclick = ()=>applyTheme(b.dataset.t));
+  $('#setAnnSilent').onchange = e=> localStorage.setItem('pdfed.annSilent', e.target.checked ? '1' : '0');
   $('#setNote').onchange   = e=> localStorage.setItem('pdfed.note', e.target.checked ? '1' : '0');
   $('#setAnnex1').onchange = e=> localStorage.setItem('pdfed.annexFirst', e.target.checked ? '1' : '0');
   $('#setShot').onchange   = e=> localStorage.setItem('pdfed.shot', e.target.checked ? '1' : '0');
@@ -1243,18 +1245,21 @@ function annExport(){
     .map(i => {
       const o = {...i};
       delete o.assetId; delete o.name;
-      if(isMine(o)) { o.c = clockNext(); o.t = Date.now(); }
+      /* le compteur est posé sur l'élément lui-même, et pas seulement sur la
+         copie exportée : sinon un réimport du fichier écraserait une retouche
+         faite depuis */
+      if(isMine(o)) { i.c = o.c = clockNext(); i.t = o.t = Date.now(); }
       return o;
     })
     .concat(Doc.tombs || []);
-  return {magic: ANN_MAGIC, v: 1,
+  return {magic: ANN_MAGIC, v: 1, createdAt: Date.now(),
     doc: {sha256: Doc.sha || null, name: Doc.name, pages: Doc.total},
     authors: peers, items};
 }
 /* Fusion silencieuse : union par identifiant, compteur logique le plus
    élevé, puis horodatage, puis identifiant d'auteur pour départager. */
 function annMerge(pack){
-  let added = 0;
+  let added = 0, updated = 0;
   for(const [id, p] of Object.entries(pack.authors || {})){
     if(id === Me.id) continue;
     Doc.peers[id] = Doc.peers[id] || {};
@@ -1266,7 +1271,10 @@ function annMerge(pack){
   const tombs = new Map((Doc.tombs || []).map(i => [i.id, i]));
   for(const inc of pack.items || []){
     if(!inc || !inc.id) continue;
-    if(inc.au === Me.id){ clockSeen(inc.c || 0); continue; }   // mes propres éléments font foi ici
+    /* Mes propres éléments sont fusionnés comme les autres : c'est ce qui
+       permet de récupérer son travail depuis un autre appareil, ou de
+       réimporter son propre fichier. À égalité de compteur, la copie locale
+       l'emporte, pour ne pas écraser une retouche non encore exportée. */
     clockSeen(inc.c || 0);
     if(inc.deleted){
       tombs.set(inc.id, inc);
@@ -1278,11 +1286,11 @@ function annMerge(pack){
     if(!cur){ Doc.items.push(inc); byId.set(inc.id, inc); added++; continue; }
     const newer = (inc.c || 0) !== (cur.c || 0) ? (inc.c || 0) > (cur.c || 0)
                 : (inc.t || 0) !== (cur.t || 0) ? (inc.t || 0) > (cur.t || 0)
-                : String(inc.au) > String(cur.au);
-    if(newer) Object.assign(cur, inc);
+                : false;
+    if(newer){ Object.assign(cur, inc); updated++; }
   }
   Doc.tombs = [...tombs.values()];
-  return added;
+  return {added, updated};
 }
 
 $('#btnAnn').onclick = ()=> withIdentity(()=>{
@@ -1313,24 +1321,116 @@ async function annSaveFile(){
   toast(t('t.annSaved', {n}), 'ok');
 }
 
+const ANN_SILENT = ()=> localStorage.getItem('pdfed.annSilent') === '1';
+
+/* Analyse d'un fichier avant fusion : ce qu'il contient, d'où il vient, et
+   ce que son import changerait. Rien n'est modifié à ce stade. */
+function annInspect(pack){
+  const byId = new Map(Doc.items.map(i => [i.id, i]));
+  const r = {authors: [], nouveaux: 0, majs: 0, connus: 0, tombes: 0, parType: {}};
+  for(const [id, p] of Object.entries(pack.authors || {})){
+    r.authors.push({id, want: normTag(p.want || p.tag), mine: id === Me.id});
+  }
+  for(const inc of pack.items || []){
+    if(!inc || !inc.id) continue;
+    if(inc.deleted){ r.tombes++; continue; }
+    r.parType[inc.type] = (r.parType[inc.type] || 0) + 1;
+    const cur = byId.get(inc.id);
+    if(!cur) r.nouveaux++;
+    else if((inc.c || 0) > (cur.c || 0)) r.majs++;
+    else r.connus++;
+  }
+  r.total = r.nouveaux + r.majs + r.connus;
+  return r;
+}
+function annConfirm(pack, fileName, info){
+  return new Promise(res=>{
+    const sameDoc = !Doc.sha || !pack.doc || !pack.doc.sha256 || pack.doc.sha256 === Doc.sha;
+    const date = pack.createdAt ? new Date(pack.createdAt)
+               : (pack.items || []).reduce((m, i) => Math.max(m, i.t || 0), 0) || null;
+    const when = date ? new Date(date).toLocaleString(locale()) : '—';
+    const others = info.authors.filter(a => !a.mine);
+    const typeLine = Object.entries(info.parType)
+      .map(([k, v]) => `${esc(t(k === 'comment' ? 'insp.comment' : k === 'highlight' ? 'insp.highlight' : 'insp.textType'))} ${v}`)
+      .join(' · ') || '—';
+    modal(`<h3>${esc(t('ann.load'))}</h3>
+      <div class="list" style="max-height:none">
+        <div class="li" style="cursor:default"><span class="t">${esc(t('ann.file'))}</span>
+          <span class="mono">${esc(fileName)}</span></div>
+        <div class="li" style="cursor:default"><span class="t">${esc(pack.doc && pack.doc.name || '—')}</span>
+          <span class="badge${sameDoc ? ' ok' : ''}">${esc(t(sameDoc ? 'ann.sameDoc' : 'ann.otherDoc'))}</span></div>
+        <div class="li" style="cursor:default"><span class="t">${esc(t('ann.created'))}</span>
+          <span class="mono">${esc(when)}</span></div>
+        <div class="li" style="cursor:default"><span class="t">${typeLine}</span>
+          <span class="badge">${info.total}</span></div>
+        <div class="li" style="cursor:default"><span class="t">${esc(t('ann.newItems'))} ${info.nouveaux}
+          · ${esc(t('ann.updated'))} ${info.majs} · ${esc(t('ann.known'))} ${info.connus}</span></div>
+      </div>
+      ${others.map(a => `<label class="f">${esc(t('ann.from'))} <span class="who">${esc(a.want)}</span>
+        — ${esc(t('ann.rename'))}</label>
+        <input type="text" data-au="${esc(a.id)}" class="annTag" value="${esc(a.want)}" maxlength="3"
+          style="text-transform:uppercase;font-family:var(--mono);text-align:center">
+        ${a.want === (Me.want || Me.tag) ? `<label class="f">
+          <input type="checkbox" class="annMine" data-au="${esc(a.id)}">${esc(t('ann.isMe'))}</label>` : ''}`).join('')}
+      ${sameDoc ? '' : `<p style="color:var(--stamp);margin-top:10px">${esc(t('t.annOtherDoc'))}</p>`}
+      <div class="foot"><button id="annNo">${esc(t('m.cancel'))}</button>
+        <button class="primary" id="annYes">${esc(t('ann.load'))}</button></div>`);
+    let done = false;
+    const finish = v=>{ if(!done){ done = true; res(v); } };
+    $('#annNo').onclick = ()=>{ closeModal(); finish(null); };
+    $('#annYes').onclick = ()=>{
+      const tags = {};
+      $$('.annTag').forEach(i => { tags[i.dataset.au] = normTag(i.value); });
+      const mine = $$('.annMine').find(c => c.checked);
+      closeModal(); finish({tags, adopt: mine ? mine.dataset.au : null});
+    };
+  });
+}
+
 $('#fileAnn').onchange = async e=>{
   const files = [...e.target.files]; e.target.value = '';
   if(!files.length || !Doc.pdf) return;
   withIdentity(async ()=>{
-    let total = 0, foreign = false;
+    let nouveaux = 0, majs = 0;
     for(const f of files){
       let pack;
-      try{ pack = JSON.parse(await f.text()); }catch(err){ toast(t('t.annBadFile'), 'err'); continue; }
-      if(!pack || pack.magic !== ANN_MAGIC){ toast(t('t.annBadFile'), 'err'); continue; }
-      if(Doc.sha && pack.doc && pack.doc.sha256 && pack.doc.sha256 !== Doc.sha){
-        foreign = true;
-        if(!confirm(t('t.annOtherDoc'))) continue;
+      /* chaque cause d'échec a son message : le silence sur un fichier
+         refusé est la pire des réponses */
+      try{ pack = JSON.parse(await f.text()); }
+      catch(err){ toast(t('t.annUnreadable', {e: err.message}), 'err'); continue; }
+      if(!pack || pack.magic !== ANN_MAGIC){ toast(t('t.annNotAnn'), 'err'); continue; }
+      if(!Array.isArray(pack.items) || !pack.items.length){ toast(t('t.annEmpty'), 'err'); continue; }
+      const info = annInspect(pack);
+      let tags = {};
+      if(!ANN_SILENT()){
+        const r = await annConfirm(pack, f.name, info);
+        if(!r) continue;
+        tags = r.tags || {};
+        /* « c'est moi » : les éléments du fichier deviennent les miens, et
+           mon identifiant local bascule sur celui du fichier, de sorte que
+           les deux appareils ne comptent plus pour deux participants */
+        if(r.adopt && r.adopt !== Me.id){
+          const old = Me.id;
+          Me.id = r.adopt;
+          localStorage.setItem('pdfed.me', JSON.stringify({id: Me.id, want: Me.want}));
+          Doc.items.forEach(i => { if(i.au === old) i.au = Me.id; });
+          (Doc.tombs || []).forEach(i => { if(i.au === old) i.au = Me.id; });
+          delete Doc.peers[r.adopt];
+          delete tags[r.adopt];
+        }
+      } else if(Doc.sha && pack.doc && pack.doc.sha256 && pack.doc.sha256 !== Doc.sha){
+        toast(t('t.annOtherDoc'), 'err');
+      }
+      for(const [id, tag] of Object.entries(tags)){
+        if(id === Me.id) continue;
+        pack.authors[id] = {...(pack.authors[id] || {}), want: tag, tag};
       }
       snapshot();
-      total += annMerge(pack);
+      const r = annMerge(pack);
+      nouveaux += r.added; majs += r.updated;
     }
     drawItems();
-    toast(t('t.annLoaded', {n: total}), foreign ? 'err' : 'ok');
+    toast(t('t.annLoaded', {n: nouveaux + majs}), (nouveaux + majs) ? 'ok' : 'err');
   });
 };
 
@@ -1849,6 +1949,11 @@ async function drawItems(){
   renderInspector(); renderItemList(); syncHistoryButtons();
   $('#btnInsp').classList.toggle('has', !!Doc.sel);
   $('#btnClip').disabled = !Doc.items.some(i=>i.type==='comment');
+  /* combien de participants ont déjà versé des annotations dans ce document */
+  const peers = Object.keys(Doc.peers).length;
+  $('#btnAnn').classList.toggle('has', peers > 0);
+  $('#btnAnn').dataset.n = peers ? String(peers + 1) : '';
+  $('#btnAnn').title = t('ann.title') + (peers ? ' — ' + [Me.tag, ...Object.values(Doc.peers).map(p=>p.tag)].join(' · ') : '');
 }
 
 /* Double-clic sur la poignée ronde : angle ramené au multiple de 90° le plus proche. */
@@ -2673,6 +2778,16 @@ async function buildComments(out, pages, getFont){
     const idx = out.getPages().indexOf(annex);
     if(idx >= 0) insertAt = idx + 1;
   } else { annex = newAnnex(); y = H - 104; }
+  /* qui a contribué : la liste ouvre l'annexe, sinon les étiquettes des
+     pastilles resteraient des sigles sans explication */
+  try{
+    const parts = [Me.tag, ...Object.values(Doc.peers).map(p => p.tag)].filter(Boolean);
+    if(parts.length > 1){
+      annex.drawText(t('exp.participants') + ' : ' + parts.join('  ·  '),
+        {x:MA, y, size:9.5, font:reg, color:rgb(.42,.45,.54)});
+      y -= 20;
+    }
+  }catch(err){}
   const dests = [];
 
   const num = i => labelOf(list[i]) || String(i + 1);
