@@ -82,4 +82,13 @@ sw = sw
   .replace(/'assets\/help\//g, "'../assets/help/");
 write('sw.js', sw);
 
-console.log('multi/ construit :', fs.readdirSync(OUT).join(', '));
+/* versions accordées : une divergence entre le numéro affiché et celui du
+   cache donne une application qui ne se met jamais à jour tout en affichant
+   l'ancien numéro — exactement le symptôme le plus déroutant qui soit. */
+const vApp = /const APP_VERSION = '([^']+)'/.exec(fs.readFileSync(path.join(OUT,'app.js'),'utf8'));
+const vSw  = /const CACHE_VERSION = '([^']+)'/.exec(fs.readFileSync(path.join(OUT,'sw.js'),'utf8'));
+if(!vApp || !vSw || vApp[1] !== vSw[1]){
+  console.error('INCOHÉRENCE de version : app.js =', vApp && vApp[1], '| sw.js =', vSw && vSw[1]);
+  process.exit(1);
+}
+console.log('multi/ construit :', fs.readdirSync(OUT).join(', '), '— version', vApp[1]);

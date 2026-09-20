@@ -19,7 +19,7 @@ const bind = (ids, fn)=> ids.forEach(id=>{ const el=$(id); if(el) el.onclick = f
 
 let toastT;
 let deferredPrompt = null;   // requête d'installation PWA, captée plus bas
-const APP_VERSION = 'v1.1-multi';
+const APP_VERSION = 'v1.2-multi';
 const APP_URL = 'https://angstik.github.io/pdf_editor/multi/';
 /* Saisie flottante des commentaires : fonction en cours de mise au point,
    désactivée par défaut. */

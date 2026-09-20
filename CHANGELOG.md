@@ -1,7 +1,15 @@
-# Journal des livraisons. 
+# Journal des livraisons
 
 Chaque entrée porte pour titre la version suivie d'une synthèse courte, et reprend
 le texte de livraison correspondant.
+
+---
+
+## v1.2.1-multi — correction du numéro de version
+
+Le paquet v1.2 portait encore les numéros de la v1.1, dans l'application comme dans le service
+worker : le cache ne voyant aucun changement, rien ne se réinstallait. Le script de dérivation
+refuse désormais de produire `/multi/` si le numéro affiché et celui du cache divergent.
 
 ---
 
