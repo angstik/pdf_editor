@@ -1,0 +1,489 @@
+/* Polices embarquées, utilisées à l'écran ET intégrées dans le PDF exporté.
+   Instances statiques sous-ensemblées (latin, latin étendu, cyrillique). */
+@font-face{font-family:'Montserrat';src:url('../vendor/fonts/Montserrat-Regular.ttf') format('truetype');
+  font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:'Montserrat';src:url('../vendor/fonts/Montserrat-Bold.ttf') format('truetype');
+  font-weight:700;font-style:normal;font-display:swap}
+@font-face{font-family:'Montserrat';src:url('../vendor/fonts/Montserrat-Italic.ttf') format('truetype');
+  font-weight:400;font-style:italic;font-display:swap}
+@font-face{font-family:'Montserrat';src:url('../vendor/fonts/Montserrat-BoldItalic.ttf') format('truetype');
+  font-weight:700;font-style:italic;font-display:swap}
+@font-face{font-family:'Roboto';src:url('../vendor/fonts/Roboto-Regular.ttf') format('truetype');
+  font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:'Roboto';src:url('../vendor/fonts/Roboto-Bold.ttf') format('truetype');
+  font-weight:700;font-style:normal;font-display:swap}
+@font-face{font-family:'Roboto';src:url('../vendor/fonts/Roboto-Italic.ttf') format('truetype');
+  font-weight:400;font-style:italic;font-display:swap}
+@font-face{font-family:'Roboto';src:url('../vendor/fonts/Roboto-BoldItalic.ttf') format('truetype');
+  font-weight:700;font-style:italic;font-display:swap}
+
+/* =========================================================
+   EDITION PDF — styles
+   Thèmes : html[data-theme="system"|"dark"|"light"]
+   ========================================================= */
+:root{
+  --chrome:#171922; --panel:#1f2230; --panel-2:#272b3b; --line:#333850;
+  --text:#e7e9f2; --muted:#959bb3; --field:#12141d; --stage:#0d0f16;
+  --tile-a:#e9e9ee; --tile-b:#fbfbfd; --shadow:0 10px 40px rgba(0,0,0,.55);
+  --ink:#5b7cff; --ink-soft:rgba(91,124,255,.16); --stamp:#d95757; --ok:#3fb37f;
+  --thumb-ring:#0d0f16;
+  --r:6px;
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+html[data-theme="light"], html[data-theme="system"].sys-light{
+  --chrome:#ffffff; --panel:#f5f6fa; --panel-2:#e9ebf2; --line:#d7dae5;
+  --text:#1b1e29; --muted:#6b7288; --field:#ffffff; --stage:#e6e8f0;
+  --tile-a:#e4e4ea; --tile-b:#f7f7fa; --shadow:0 6px 26px rgba(20,25,50,.18);
+  --ink:#3f5fe8; --ink-soft:rgba(63,95,232,.12); --stamp:#c53b3b; --ok:#218a63;
+  --thumb-ring:#ffffff;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;overscroll-behavior:none}
+/* dvh suit la barre d'outils rétractable des navigateurs mobiles : sans lui,
+   le mode paysage laisse le bas de l'application sous les menus du navigateur */
+@supports (height:100dvh){ html,body{height:100dvh} }
+/* --vvh est posé par le script d'après window.visualViewport : c'est la seule
+   mesure fiable quand le clavier logiciel est déployé. */
+html,body{height:var(--vvh, 100%)}
+body{
+  background:var(--chrome);color:var(--text);font-family:var(--font);font-size:13px;
+  display:grid;grid-template-rows:auto auto 1fr;overflow:hidden;
+  -webkit-tap-highlight-color:transparent;
+}
+button,input,select,textarea{font:inherit;color:inherit}
+button{background:var(--panel-2);border:1px solid var(--line);border-radius:var(--r);
+  padding:6px 10px;cursor:pointer;white-space:nowrap;min-height:32px;display:inline-flex;
+  align-items:center;justify-content:center;gap:6px}
+button:hover:not(:disabled){border-color:var(--ink)}
+button:disabled{opacity:.38;cursor:default}
+button.primary{background:var(--ink);border-color:var(--ink);color:#fff}
+button.primary:hover:not(:disabled){filter:brightness(1.08)}
+button.ghost{background:transparent}
+button.danger:hover{border-color:var(--stamp);color:var(--stamp)}
+button.on{background:var(--ink);border-color:var(--ink);color:#fff}
+input[type=text],input[type=password],input[type=number],select,textarea{
+  background:var(--field);border:1px solid var(--line);border-radius:var(--r);padding:6px 8px;width:100%}
+textarea{resize:vertical}
+input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid var(--ink);outline-offset:1px}
+label.f{display:block;margin:10px 0 4px;color:var(--muted);font-size:12.5px}
+label.f input[type=checkbox]{width:auto;margin-right:4px;accent-color:var(--ink)}
+.icon{width:36px;padding:2px;flex:0 0 auto;font-size:20px;font-weight:700;line-height:1;
+  letter-spacing:0}
+.icon.glyph-lg{font-size:23px}
+.icon.glyph-sm{font-size:17px}
+.brand svg{stroke-width:2.3}
+
+/* ---------- curseurs (épaisseur, opacité, seuil) ---------- */
+input[type=range]{
+  -webkit-appearance:none;appearance:none;width:100%;height:28px;margin:2px 0;
+  background:transparent;cursor:pointer}
+input[type=range]::-webkit-slider-runnable-track{
+  height:8px;border-radius:6px;background:var(--panel-2);border:1px solid var(--line)}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:22px;height:22px;margin-top:-8px;border-radius:50%;
+  background:var(--ink);border:3px solid var(--thumb-ring);box-shadow:0 1px 5px rgba(0,0,0,.45)}
+input[type=range]:hover::-webkit-slider-thumb{filter:brightness(1.12)}
+input[type=range]::-moz-range-track{
+  height:8px;border-radius:6px;background:var(--panel-2);border:1px solid var(--line)}
+input[type=range]::-moz-range-thumb{
+  width:20px;height:20px;border-radius:50%;background:var(--ink);
+  border:3px solid var(--thumb-ring);box-shadow:0 1px 5px rgba(0,0,0,.45)}
+input[type=range]:focus-visible{outline:none}
+input[type=range]:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 3px var(--ink-soft)}
+
+/* ---------- sélecteur de couleur ---------- */
+.swatch{position:relative;display:block;height:34px;border-radius:var(--r);
+  border:1px solid var(--line);overflow:hidden;cursor:pointer;
+  background:repeating-conic-gradient(var(--tile-a) 0% 25%,var(--tile-b) 0% 50%) 50%/10px 10px}
+.swatch i{position:absolute;inset:0;background:var(--c)}
+.swatch input[type=color]{position:absolute;inset:0;width:100%;height:100%;opacity:0;
+  border:0;padding:0;cursor:pointer}
+.swatch b{position:absolute;right:6px;bottom:3px;font-family:var(--mono);font-size:10px;
+  font-weight:400;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.9);pointer-events:none;letter-spacing:.3px}
+.swatch:hover{border-color:var(--ink)}
+.presets{display:flex;gap:6px;margin-top:7px;flex-wrap:wrap}
+.compact .swatch{height:26px}
+.compact .presets{margin-top:5px;gap:5px}
+.compact .presets button{width:20px;height:20px;min-height:20px}
+.presets button{width:24px;height:24px;min-height:24px;padding:0;border-radius:50%;
+  border:1px solid var(--line)}
+.presets button.on{outline:2px solid var(--ink);outline-offset:2px}
+
+/* ---------- barres ---------- */
+header,.toolbar{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--panel);
+  border-bottom:1px solid var(--line);min-width:0;flex-wrap:wrap}
+/* Sans viewport-fit=cover, iOS insère lui-même la marge de l'îlot : les
+   valeurs env() retombent à zéro et ne servent plus que de garde-fou pour
+   les plateformes qui, elles, dessinent sous les encoches. */
+header{padding-top:max(8px,env(safe-area-inset-top,0px))}
+.brand{display:flex;align-items:center;gap:8px;font-weight:700;letter-spacing:.4px;font-size:14px;flex:0 0 auto}
+.brand svg{color:var(--ink);flex:0 0 auto}
+.sep{width:1px;height:24px;background:var(--line);flex:0 0 auto}
+.docname{color:var(--muted);flex:1 1 auto;min-width:0;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;align-self:stretch;display:flex;align-items:center}
+.docname.empty{cursor:pointer}
+.docname.empty:hover{color:var(--ink)}
+/* Le nom est toujours tronqué plutôt que de passer à la ligne : il ne doit
+   jamais repousser les outils. Le nom complet reste dans l'infobulle. */
+.docname, .docname.full{flex:0 1 auto;max-width:min(34vw, 300px);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;word-break:normal}
+.spacer{flex:1 1 auto;min-width:2px}
+.pager{display:flex;align-items:center;gap:5px;flex:0 0 auto}
+/* Groupes de la barre d'outils : navigation d'un côté, ajouts et historique de
+   l'autre. Si la largeur ne suffit pas, ils passent à la ligne d'un bloc. */
+.grp{display:flex;align-items:center;gap:6px;flex:0 0 auto}
+.toolbar .spacer{min-width:8px}
+/* La largeur est posée par le script d'après le nombre de chiffres du total.
+   En box-sizing:border-box elle englobe rembourrage et bordures : ceux-ci sont
+   donc ajoutés au calcul, sinon il ne reste presque rien pour les chiffres. */
+.pager #pNum{box-sizing:border-box;min-width:0;text-align:center;font-size:14px;
+  font-weight:600;padding:5px 4px}
+.pager .tot{font-size:13px;font-weight:600;color:var(--muted);white-space:nowrap;
+  margin-right:2px}
+.zlbl{font-family:var(--mono);width:46px;text-align:center;color:var(--muted);flex:0 0 auto}
+.only-sm{display:none}
+
+/* menu déroulant (langues) */
+.menu{position:absolute;z-index:70;background:var(--panel);border:1px solid var(--line);
+  border-radius:10px;box-shadow:var(--shadow);padding:6px;min-width:172px;max-height:70vh;overflow:auto}
+.menu button{display:flex;width:100%;justify-content:flex-start;border:0;background:transparent;
+  border-radius:var(--r);padding:8px 10px}
+.menu button:hover{background:var(--panel-2)}
+.menu button.on{color:var(--ink);font-weight:600}
+
+/* ---------- colonnes ---------- */
+/* Trois dispositions pour la barre d'outils, obtenues en replaçant les mêmes
+   éléments dans la grille du corps : au-dessus (défaut), à gauche ou à droite.
+   En paysage, la barre rejoint la ligne de l'en-tête pour rendre de la hauteur. */
+body.tools-left, body.tools-right{grid-template-rows:auto 1fr}
+body.tools-left{grid-template-columns:auto 1fr}
+body.tools-right{grid-template-columns:1fr auto}
+body.tools-left > header, body.tools-right > header{grid-column:1 / 3}
+body.tools-left  > .toolbar{grid-row:2;grid-column:1;border-bottom:0;border-right:1px solid var(--line)}
+body.tools-right > .toolbar{grid-row:2;grid-column:2;border-bottom:0;border-left:1px solid var(--line)}
+body.tools-left  > main{grid-row:2;grid-column:2}
+body.tools-right > main{grid-row:2;grid-column:1}
+body.tools-left > .toolbar, body.tools-right > .toolbar{
+  flex-direction:column;justify-content:flex-start;padding:8px 6px;overflow-y:auto}
+body.tools-left .toolbar .grp, body.tools-right .toolbar .grp{flex-direction:column}
+body.tools-left .toolbar .sep, body.tools-right .toolbar .sep{width:22px;height:1px}
+body.tools-left .toolbar .zlbl, body.tools-right .toolbar .zlbl{width:auto;font-size:10px}
+body.tools-left .toolbar .pager, body.tools-right .toolbar .pager{flex-direction:column}
+body.tools-left .toolbar .spacer, body.tools-right .toolbar .spacer{min-height:8px}
+
+/* Colonnes en auto : masquer un panneau rend sa place au document sans avoir
+   à redéfinir la grille. */
+main{display:grid;grid-template-columns:auto 1fr auto;min-height:0;min-width:0}
+aside.left{width:266px}
+aside.right{width:300px}
+body.no-lib  aside.left{display:none}
+body.no-insp aside.right{display:none}
+aside{background:var(--panel);display:flex;flex-direction:column;min-height:0}
+aside.left{border-right:1px solid var(--line)}
+aside.right{border-left:1px solid var(--line)}
+.pane-head{display:flex;align-items:center;gap:4px;padding:10px 12px;border-bottom:1px solid var(--line)}
+.pane-head h2{font-size:12px;margin:0;font-weight:600;flex:0 0 auto;min-width:0}
+.ver{font-family:var(--mono);font-size:10px;color:var(--muted);flex:0 0 auto}
+.pane-body{overflow:auto;padding:10px 12px;flex:1;-webkit-overflow-scrolling:touch;font-size:13.5px}
+.pane-foot{border-top:1px solid var(--line);padding:8px 12px;display:flex;gap:6px;
+  padding-bottom:max(8px,env(safe-area-inset-bottom,0px))}
+#scrim{position:fixed;inset:0;background:rgba(8,10,18,.55);z-index:30;display:none}
+#scrim.on{display:block}
+
+/* ---------- bibliothèque ---------- */
+.lib{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.asset{border:1px solid var(--line);border-radius:var(--r);background:var(--field);overflow:hidden}
+.asset .thumb{height:66px;display:flex;align-items:center;justify-content:center;cursor:pointer;
+  background:repeating-conic-gradient(var(--tile-a) 0% 25%,var(--tile-b) 0% 50%) 50%/12px 12px}
+.asset .thumb img{max-width:92%;max-height:58px;object-fit:contain}
+.asset .nm{padding:4px 6px;font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.asset .acts{display:flex;border-top:1px solid var(--line)}
+.asset .acts button{flex:1;border:0;border-radius:0;background:transparent;padding:4px;color:var(--muted);min-height:30px}
+.asset .acts button:hover{background:var(--panel-2);color:var(--text)}
+.empty{color:var(--muted);line-height:1.55;padding:6px 0}
+.stack{display:flex;flex-direction:column;gap:8px}
+
+/* ---------- visionneuse ---------- */
+.viewer{background:var(--stage);overflow:auto;position:relative;display:flex;
+  touch-action:pan-x pan-y;
+  justify-content:flex-start;align-items:flex-start;padding:20px;
+  -webkit-overflow-scrolling:touch;min-width:0}
+/* Le centrage passe par des marges automatiques et non par justify/align-center :
+   un élément centré par le conteneur flexible voit son débordement haut et gauche
+   devenir inatteignable au défilement dès que le document est agrandi. */
+.stage{position:relative;height:max-content;box-shadow:var(--shadow);background:#fff;
+  flex:0 0 auto;margin:auto}
+/* pendant le pincement la mise à l'échelle est purement visuelle ; le rendu
+   définitif n'intervient qu'au relâchement */
+.stage.pinching{will-change:transform}
+.stage.pinching .layer{pointer-events:none}
+.stage canvas{display:block}
+.layer{position:absolute;inset:0;overflow:hidden}
+.item{position:absolute;transform-origin:50% 50%;cursor:move;touch-action:none}
+.item img{width:100%;height:100%;display:block;pointer-events:none;-webkit-user-drag:none}
+.item .hl{width:100%;height:100%;border-radius:1px}
+/* Commentaire : cadre libre, teinte légère, pastille numérotée en marge.
+   La pastille est décalée hors du cadre, comme à l'export. */
+.item.cmt{mix-blend-mode:normal}
+.item .cmt-box{position:absolute;inset:0;border:1.6px solid var(--cc,#cc2a2e);border-radius:2px}
+.item .cmt-tint{position:absolute;inset:0;background:var(--cc,#cc2a2e);opacity:.06;border-radius:2px}
+.item .cmt-n{position:absolute;left:-24px;top:-2px;width:20px;height:20px;border-radius:50%;
+  background:var(--cc,#cc2a2e);color:#fff;font-size:11px;font-weight:700;display:flex;
+  align-items:center;justify-content:center;line-height:1;pointer-events:none}
+.h-e{right:-8px;top:50%;margin-top:-8px;cursor:ew-resize}
+.h-s{left:50%;bottom:-8px;margin-left:-8px;cursor:ns-resize}
+.item.hl-item{mix-blend-mode:multiply}
+html[data-theme="dark"] .item.hl-item, html[data-theme="system"]:not(.sys-light) .item.hl-item{mix-blend-mode:multiply}
+.band{position:absolute;border:1.5px dashed var(--ink);background:var(--ink-soft);
+  pointer-events:none;border-radius:2px}
+.viewer.hl-mode{cursor:crosshair}
+/* Outil armé : le doigt doit tracer, pas faire défiler la page agrandie.
+   Sans cela le navigateur panoramique pendant le geste et le rectangle obtenu
+   n'a plus aucun rapport avec ce qui a été dessiné. */
+.viewer.hl-mode .layer{cursor:crosshair;touch-action:none}
+.item .txt{width:100%;height:100%;white-space:pre;color:#000;pointer-events:none}
+.item.sel{outline:1px solid var(--ink);outline-offset:1px}
+.item.locked{cursor:default}
+.item.locked.sel{outline-color:var(--ok)}
+.handle{position:absolute;background:#fff;border:2px solid var(--ink);border-radius:3px;
+  width:15px;height:15px;touch-action:none}
+.h-se{right:-8px;bottom:-8px;cursor:nwse-resize}
+.h-rot{left:50%;top:-30px;margin-left:-8px;border-radius:50%;cursor:grab}
+.h-rot::after{content:"";position:absolute;left:50%;top:13px;width:2px;margin-left:-1px;height:16px;background:var(--ink)}
+.h-del{right:-11px;top:-11px;width:24px;height:24px;border-radius:50%;background:var(--stamp);
+  border-color:var(--stamp);color:#fff;display:flex;align-items:center;justify-content:center;
+  font-size:13px;line-height:1;cursor:pointer}
+.h-del:hover{filter:brightness(1.12)}
+.drophint[hidden]{display:none}   /* display:flex l'emporterait sur [hidden] */
+.drophint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;
+  color:var(--muted);flex-direction:column;gap:10px;text-align:center;padding:24px;line-height:1.6}
+.drophint b{color:var(--text);font-weight:600;font-size:16px}
+.viewer.dragover{outline:2px dashed var(--ink);outline-offset:-10px}
+.drophint:hover b{color:var(--ink)}
+
+/* ---------- inspecteur ---------- */
+.row{display:flex;gap:6px;align-items:flex-end}
+.row>*{flex:1;min-width:0}
+.chip{display:flex;align-items:center;gap:5px;font-size:12.5px;color:var(--muted);flex-wrap:wrap}
+.list{display:flex;flex-direction:column;gap:4px;margin-top:6px;max-height:26vh;overflow:auto}
+.list .li{display:flex;align-items:center;gap:7px;padding:6px;border:1px solid var(--line);
+  border-radius:var(--r);background:var(--field);cursor:pointer;font-size:13px}
+.list .li:hover{border-color:var(--ink)}
+.list .li.on{border-color:var(--ink);background:var(--ink-soft)}
+.list .li .t{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.list .li .ty{flex:0 0 20px;width:20px;height:20px;border-radius:4px;display:flex;
+  align-items:center;justify-content:center;font-size:12px;font-weight:700;line-height:1;
+  border:1px solid var(--line);background:var(--panel-2);overflow:hidden}
+.list .li .ty img{width:100%;height:100%;object-fit:contain}
+.list .li .ty.hl{background:#ffe14d;color:#4a3b00;border-color:#e0c53c}
+.list .li .ty.cmt{background:var(--stamp);color:#fff;border-color:var(--stamp)}
+.list .li .del{min-height:24px;width:26px;padding:0;border:0;background:transparent;color:var(--muted);flex:0 0 auto}
+.list .li .del:hover{color:var(--stamp)}
+.badge{font-size:10px;padding:1px 6px;border-radius:20px;border:1px solid var(--line);color:var(--muted)}
+.badge.ok{color:var(--ok);border-color:var(--ok)}
+.mono{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.dot{position:absolute;top:3px;right:3px;width:7px;height:7px;border-radius:50%;background:var(--ink);display:none}
+button.rel{position:relative}
+button.rel.has .dot{display:block}
+
+.settings{margin-top:4px}
+.langsel{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.langsel button{justify-content:flex-start;gap:7px;padding:6px 7px;min-height:34px;
+  font-size:12px;overflow:hidden}
+.langsel button span{overflow:hidden;text-overflow:ellipsis}
+.langsel button.on{border-color:var(--ink);background:var(--ink-soft);color:var(--ink);font-weight:600}
+.flag{width:19px;height:14px;border-radius:2px;flex:0 0 auto;
+  box-shadow:0 0 0 1px rgba(0,0,0,.22) inset}
+.seg{display:flex;gap:5px}
+.seg button{flex:1;font-size:12px;padding:6px 4px}
+
+/* champ de mot de passe : bascule d'affichage et jauge de robustesse */
+.pw{position:relative}
+.pw input{padding-right:40px}
+.pw .eye{position:absolute;right:3px;top:50%;transform:translateY(-50%);width:32px;height:28px;
+  min-height:28px;border:0;background:transparent;padding:0;color:var(--muted);font-size:15px}
+.pw .eye:hover{color:var(--text);border:0}
+.meter{display:flex;gap:4px;margin-top:7px}
+.meter i{flex:1;height:6px;border-radius:4px;background:var(--panel-2);
+  border:1px solid var(--line);transition:background .15s}
+.meter-lbl{display:block;font-size:11px;color:var(--muted);margin-top:5px;min-height:14px}
+.pw input.bad{border-color:var(--stamp);box-shadow:0 0 0 2px rgba(217,87,87,.18)}
+.pw-err{display:block;font-size:11px;color:var(--stamp);margin-top:4px;min-height:14px}
+.pw input.bad{border-color:var(--stamp);box-shadow:0 0 0 1px var(--stamp) inset}
+.pw-err{display:block;font-size:11px;color:var(--stamp);margin-top:4px;min-height:14px}
+
+.examples{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:6px}
+.examples figure{margin:0}
+.examples figcaption{font-size:11px;color:var(--muted);margin-top:5px;text-align:center}
+.examples svg{width:100%;height:auto;border:1px solid var(--line);border-radius:6px;background:#fff}
+@media (max-width:560px){ .examples{grid-template-columns:1fr} }
+
+/* ---------- zone de saisie sans champ de formulaire ----------
+   Un élément éditable évite la barre d'accessoires que iOS impose au-dessus du
+   clavier pour les champs de formulaire. */
+.edit{min-height:74px;max-height:30vh;overflow:auto;white-space:pre-wrap;word-break:break-word;
+  background:var(--field);border:1px solid var(--line);border-radius:var(--r);
+  padding:7px 8px;line-height:1.45;-webkit-user-select:text;user-select:text}
+.edit:focus{outline:2px solid var(--ink);outline-offset:1px}
+.edit:empty::before{content:attr(data-ph);color:var(--muted);pointer-events:none}
+
+/* ---------- saisie flottante (bêta) ----------
+   Panneau non modal : ni fond assombri ni capture des événements, le document
+   reste défilable et zoomable pendant la saisie. */
+/* Le panneau occupe une vraie ligne de la grille du corps plutôt qu'une
+   position fixe : la hauteur du corps suit déjà le viewport visuel, donc tout
+   ce qu'il contient reste au-dessus du clavier, sans compensation à calculer.
+   Une position fixe se réfère au viewport de mise en page, que le clavier ne
+   réduit pas — le panneau se retrouvait dessous. */
+#composer{grid-row:auto;justify-self:center;box-sizing:border-box;
+  width:min(620px, calc(100% - 16px));max-width:calc(100vw - 16px);
+  margin:0 8px calc(8px + env(safe-area-inset-bottom,0px));
+  display:flex;flex-direction:column;gap:6px;
+  background:var(--panel);border:1px solid var(--line);border-radius:12px;
+  box-shadow:var(--shadow);padding:8px;z-index:5}
+#composer[hidden]{display:none}
+#composer .cp-row{display:flex;align-items:center;gap:6px;min-width:0;flex:0 0 auto;flex-wrap:nowrap}
+#composer .cp-row .spacer{flex:1 1 auto;min-width:4px}
+/* la zone de saisie occupe toute la hauteur restante, sans marge résiduelle */
+#composer .edit{flex:1 1 auto;min-height:72px;margin:0;
+  max-height:calc(var(--vvh, 100vh) * .26);
+  padding:7px 8px 6px;overflow-y:auto}
+#composer .edit br:last-child{display:none}
+#composer .cp-sw{position:relative;width:40px;min-height:30px;padding:0;flex:0 0 auto;overflow:hidden}
+.cp-sw i{position:absolute;inset:2px;border-radius:3px;background:var(--c,#cc2a2e)}
+/* Bouton à deux états présenté comme une case à cocher : pas de champ de
+   formulaire, mais l'apparence attendue. */
+/* le libellé se laisse comprimer plutôt que d'élargir le panneau */
+#composer .cp-chk{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text);
+  min-width:0;flex:0 1 auto;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;
+  padding:2px 4px;min-height:30px;width:auto;background:transparent;border:0}
+#composer .cp-chk span{overflow:hidden;text-overflow:ellipsis}
+#composer .cp-chk:hover{border:0}
+#composer .cp-chk .box{flex:0 0 auto;width:17px;height:17px;border-radius:4px;
+  border:1.6px solid var(--line);display:flex;align-items:center;justify-content:center;
+  font-size:11px;line-height:1;color:transparent}
+#composer .cp-chk.on .box{background:var(--ink);border-color:var(--ink);color:#fff}
+.cp-pal{padding:6px 2px 0}
+.cp-pal[hidden]{display:none}
+/* Ligne de couleur commune aux deux fenêtres : pastilles rondes puis la
+   pastille multicolore qui masque le sélecteur standard. */
+/* La pastille multicolore est ancrée à droite ; les pastilles intermédiaires
+   occupent la place restante et le script masque celles qui ne tiennent pas. */
+.crow{display:flex;gap:7px;flex-wrap:nowrap;align-items:center;margin-top:6px;
+  overflow:hidden;min-width:0}
+.crow .cmid{display:flex;gap:7px;align-items:center;flex:1 1 auto;min-width:0;overflow:hidden}
+.crow-more{margin-left:auto}
+.crow button{width:25px;height:25px;min-height:25px;padding:0;border-radius:50%;
+  border:1px solid var(--line)}
+.crow button.on{outline:2px solid var(--ink);outline-offset:2px}
+.crow-more{position:relative;width:25px;height:25px;border-radius:50%;overflow:hidden;
+  border:1px solid var(--line);cursor:pointer;flex:0 0 auto;
+  background:conic-gradient(#e33,#ee3,#3d3,#3dd,#33e,#d3d,#e33)}
+.crow-more input{position:absolute;inset:0;width:100%;height:100%;opacity:0;border:0;padding:0;cursor:pointer}
+/* uniquement les trois commandes : le bouton de couleur et celui de reprise
+   ont leur propre gabarit, écrasé jusqu'ici par cette règle */
+#composer .cp-row button.icon{width:38px;min-height:32px;font-size:16px;padding:0;flex:0 0 auto}
+@media (max-height:520px) and (orientation:landscape){
+  #composer{bottom:6px}
+  #composer .edit{min-height:44px;max-height:30vh}
+}
+/* pendant la saisie flottante, le bas du document reste atteignable */
+
+/* clavier déployé : le panneau se resserre, la place restante est rare */
+body.kb-open #composer{gap:4px;padding:6px}
+body.kb-open #composer .edit{min-height:46px}
+body.kb-open .drophint{display:none}
+
+/* ---------- modales ---------- */
+.mask{position:fixed;inset:0;background:rgba(6,7,12,.72);display:none;align-items:center;
+  justify-content:center;z-index:60;padding:14px}
+.mask.on{display:flex}
+.modal{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;
+  width:min(580px,100%);max-height:86vh;overflow:auto;box-shadow:0 24px 70px rgba(0,0,0,.5)}
+.modal{font-size:13.5px}
+.modal h3{margin:0 0 6px;font-size:17px}
+.modal h4{margin:16px 0 6px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+.f .mini{min-height:20px;padding:0 7px;font-size:11px;margin-left:8px;vertical-align:middle}
+.modal p{margin:0 0 10px;color:var(--muted);line-height:1.6;font-size:13px}
+.modal .foot{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;flex-wrap:wrap}
+.modal .foot .left{margin-right:auto}
+.steps{display:flex;flex-direction:column;gap:10px;margin:0 0 4px}
+.step{display:flex;gap:10px;align-items:flex-start}
+.step .n{flex:0 0 22px;height:22px;border-radius:50%;background:var(--ink);color:#fff;
+  display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
+.step div b{display:block;margin-bottom:1px}
+.step div span{color:var(--muted);line-height:1.5}
+.plat{display:flex;flex-direction:column;gap:5px;color:var(--muted);line-height:1.5}
+#padCanvas,#cutCanvas{width:100%;border-radius:var(--r);border:1px solid var(--line);touch-action:none;
+  background:repeating-conic-gradient(var(--tile-a) 0% 25%,var(--tile-b) 0% 50%) 50%/14px 14px}
+#toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));
+  transform:translateX(-50%) translateY(12px);background:var(--panel-2);border:1px solid var(--line);
+  border-left:3px solid var(--ink);padding:10px 14px;border-radius:var(--r);opacity:0;
+  transition:.18s;pointer-events:none;z-index:80;max-width:86vw}
+#toast.on{opacity:1;transform:translateX(-50%)}
+#measure{position:absolute;left:-9999px;top:0;visibility:hidden;white-space:pre}
+
+/* ---------- mobile : tout doit tenir, aucun défilement horizontal ---------- */
+@media (max-width:900px){
+  .grp{gap:4px}
+  .only-sm{display:inline-flex}
+  .hide-sm{display:none!important}
+  main{grid-template-columns:1fr}
+  header,.toolbar{gap:5px;padding:6px 8px;flex-wrap:wrap}
+  header{padding-top:max(6px,env(safe-area-inset-top,0px))}
+  .toolbar{justify-content:space-between}
+  button{padding:6px 8px;min-height:34px}
+  .icon{width:34px;padding:4px}
+  .pager{gap:3px}
+  .pager #pNum{font-size:14px}
+  aside{position:fixed;top:0;bottom:0;width:min(330px,88vw);z-index:40;box-shadow:var(--shadow);
+    transform:translateX(-102%);transition:transform .22s ease;padding-top:env(safe-area-inset-top)}
+  aside.right{right:0;transform:translateX(102%)}
+  aside.open{transform:none}
+  .viewer{padding:8px}
+  .list{max-height:38vh}
+  .modal{padding:14px}
+  /* cibles tactiles plus généreuses sur les poignées */
+  .handle{width:17px;height:17px}
+  .h-se{right:-9px;bottom:-9px}
+  .h-rot{margin-left:-9px;top:-32px}
+  .h-del{width:26px;height:26px;right:-12px;top:-12px}
+}
+@media (max-width:440px){
+  header,.toolbar{gap:3px;padding:6px 6px}
+  .icon{width:30px;font-size:18px}
+  .icon.glyph-lg{font-size:21px}
+  .pager .tot{font-size:13px}
+  .zlbl{width:40px}
+  .sep{height:20px}
+  button{padding:6px 6px;min-height:32px}
+}
+/* paysage : en-tête et outils partagent une seule ligne, le nom se raccourcit */
+@media (max-height:560px) and (orientation:landscape){
+  body:not(.tools-left):not(.tools-right){grid-template-rows:auto 1fr;grid-template-columns:1fr auto}
+  body:not(.tools-left):not(.tools-right) > header{grid-row:1;grid-column:1;border-right:1px solid var(--line)}
+  body:not(.tools-left):not(.tools-right) > .toolbar{grid-row:1;grid-column:2}
+  body:not(.tools-left):not(.tools-right) > main{grid-row:2;grid-column:1 / 3}
+  header, .toolbar{flex-wrap:nowrap}
+  .docname{max-width:22vw;flex:0 1 auto}
+  .toolbar .spacer{display:none}
+}
+@media (max-height:520px) and (orientation:landscape){
+  .docname{flex:0 1 120px;max-width:120px;font-size:12px}
+  .docname.full{flex:0 1 120px;max-width:120px;white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis;word-break:normal}
+  header,.toolbar{flex-wrap:nowrap}
+  header,.toolbar{padding:3px 6px}
+  header{padding-top:max(3px,env(safe-area-inset-top,0px))}
+  .icon{width:30px;min-height:30px}
+  button{min-height:30px}
+  .brand{display:none}
+  .viewer{padding:5px}
+  .pane-head{padding:6px 10px}
+  .list{max-height:26vh}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
