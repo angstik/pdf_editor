@@ -12,6 +12,10 @@ const I18N = {
 /* ------------------------------------------------------------------ FR */
 fr:{
 locale:'fr-FR',
+'ann.restoreDel':"Restaurer ces éléments supprimés ici",
+'t.verAvail':"Version en ligne : {v} — installée : {cur}",
+'ann.blocked':"Supprimés ici",
+'t.updFound':"Version sur le serveur : {v}",
 'ann.silent':"Import silencieux",
 'ann.confirm':"Importer ces annotations ?",
 'ann.file':"Fichier",
@@ -246,6 +250,10 @@ locale:'fr-FR',
 /* ------------------------------------------------------------------ EN */
 en:{
 locale:'en-GB',
+'ann.restoreDel':"Restore these items deleted here",
+'t.verAvail':"Online version: {v} — installed: {cur}",
+'ann.blocked':"Deleted here",
+'t.updFound':"Version on the server: {v}",
 'ann.silent':"Silent import",
 'ann.confirm':"Import these annotations?",
 'ann.file':"File",
@@ -480,6 +488,10 @@ locale:'en-GB',
 /* ------------------------------------------------------------------ DE */
 de:{
 locale:'de-DE',
+'ann.restoreDel':"Diese hier gelöschten Elemente wiederherstellen",
+'t.verAvail':"Online-Version: {v} — installiert: {cur}",
+'ann.blocked':"Hier gelöscht",
+'t.updFound':"Version auf dem Server: {v}",
 'ann.silent':"Stiller Import",
 'ann.confirm':"Diese Anmerkungen importieren?",
 'ann.file':"Datei",
@@ -715,6 +727,10 @@ locale:'de-DE',
 /* ------------------------------------------------------------------ ES */
 es:{
 locale:'es-ES',
+'ann.restoreDel':"Restaurar estos elementos eliminados aquí",
+'t.verAvail':"Versión en línea: {v} — instalada: {cur}",
+'ann.blocked':"Eliminados aquí",
+'t.updFound':"Versión en el servidor: {v}",
 'ann.silent':"Importación silenciosa",
 'ann.confirm':"¿Importar estas anotaciones?",
 'ann.file':"Archivo",
@@ -949,6 +965,10 @@ locale:'es-ES',
 /* ------------------------------------------------------------------ IT */
 it:{
 locale:'it-IT',
+'ann.restoreDel':"Ripristina questi elementi eliminati qui",
+'t.verAvail':"Versione online: {v} — installata: {cur}",
+'ann.blocked':"Eliminati qui",
+'t.updFound':"Versione sul server: {v}",
 'ann.silent':"Importazione silenziosa",
 'ann.confirm':"Importare queste annotazioni?",
 'ann.file':"File",
@@ -1183,6 +1203,10 @@ locale:'it-IT',
 /* ------------------------------------------------------------------ UK */
 uk:{
 locale:'uk-UA',
+'ann.restoreDel':"Відновити ці елементи, видалені тут",
+'t.verAvail':"Версія онлайн: {v} — встановлена: {cur}",
+'ann.blocked':"Видалені тут",
+'t.updFound':"Версія на сервері: {v}",
 'ann.silent':"Тихий імпорт",
 'ann.confirm':"Імпортувати ці примітки?",
 'ann.file':"Файл",
@@ -1417,6 +1441,10 @@ locale:'uk-UA',
 /* ------------------------------------------------------------------ CS */
 cs:{
 locale:'cs-CZ',
+'ann.restoreDel':"Obnovit tyto zde smazané prvky",
+'t.verAvail':"Verze online: {v} — nainstalovaná: {cur}",
+'ann.blocked':"Zde smazané",
+'t.updFound':"Verze na serveru: {v}",
 'ann.silent':"Tichý import",
 'ann.confirm':"Importovat tyto poznámky?",
 'ann.file':"Soubor",

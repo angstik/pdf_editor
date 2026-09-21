@@ -19,7 +19,7 @@ const bind = (ids, fn)=> ids.forEach(id=>{ const el=$(id); if(el) el.onclick = f
 
 let toastT;
 let deferredPrompt = null;   // requête d'installation PWA, captée plus bas
-const APP_VERSION = 'v1.2-multi';
+const APP_VERSION = 'v1.3.1-multi';
 const APP_URL = 'https://angstik.github.io/pdf_editor/multi/';
 /* Saisie flottante des commentaires : fonction en cours de mise au point,
    désactivée par défaut. */
@@ -1179,6 +1179,13 @@ function stamp(it){
   return it;
 }
 const isMine = it => !it.au || it.au === Me.id;
+/* Toute retouche avance le compteur : sans cela, deux appareils modifiant le
+   même élément ne pourraient être départagés que par l'ordre des exports. */
+function touch(it){
+  if(!it || !SHARED.includes(it.type) || !isMine(it)) return it;
+  it.c = clockNext(); it.t = Date.now();
+  return it;
+}
 /* Un élément partageable est marqué dès sa création ; les images, qui ne
    circulent pas, restent anonymes. */
 function stampNew(it){
@@ -1258,7 +1265,7 @@ function annExport(){
 }
 /* Fusion silencieuse : union par identifiant, compteur logique le plus
    élevé, puis horodatage, puis identifiant d'auteur pour départager. */
-function annMerge(pack){
+function annMerge(pack, opt = {}){
   let added = 0, updated = 0;
   for(const [id, p] of Object.entries(pack.authors || {})){
     if(id === Me.id) continue;
@@ -1277,11 +1284,24 @@ function annMerge(pack){
        l'emporte, pour ne pas écraser une retouche non encore exportée. */
     clockSeen(inc.c || 0);
     if(inc.deleted){
-      tombs.set(inc.id, inc);
-      if(byId.has(inc.id)){ Doc.items = Doc.items.filter(x => x.id !== inc.id); byId.delete(inc.id); }
+      const cur0 = byId.get(inc.id);
+      /* la suppression reçue ne s'applique pas à une version locale plus récente */
+      if(cur0 && (cur0.c || 0) > (inc.c || 0)) continue;
+      const old = tombs.get(inc.id);
+      if(!old || (inc.c || 0) > (old.c || 0)) tombs.set(inc.id, inc);
+      if(cur0){ Doc.items = Doc.items.filter(x => x.id !== inc.id); byId.delete(inc.id); }
       continue;
     }
-    if(tombs.has(inc.id)) continue;
+    const tomb = tombs.get(inc.id);
+    /* restauration demandée : la suppression locale est levée pour tout
+       élément que le fichier contient encore */
+    if(tomb && opt.restore){ tombs.delete(inc.id); }
+    else if(tomb){
+      /* Une suppression ne vaut que contre ce qu'elle a effectivement vu :
+         une version postérieure du même élément doit pouvoir revenir. */
+      if((inc.c || 0) <= (tomb.c || 0)) continue;
+      tombs.delete(inc.id);
+    }
     const cur = byId.get(inc.id);
     if(!cur){ Doc.items.push(inc); byId.set(inc.id, inc); added++; continue; }
     const newer = (inc.c || 0) !== (cur.c || 0) ? (inc.c || 0) > (cur.c || 0)
@@ -1327,7 +1347,8 @@ const ANN_SILENT = ()=> localStorage.getItem('pdfed.annSilent') === '1';
    ce que son import changerait. Rien n'est modifié à ce stade. */
 function annInspect(pack){
   const byId = new Map(Doc.items.map(i => [i.id, i]));
-  const r = {authors: [], nouveaux: 0, majs: 0, connus: 0, tombes: 0, parType: {}};
+  const tombs = new Map((Doc.tombs || []).map(i => [i.id, i]));
+  const r = {authors: [], nouveaux: 0, majs: 0, connus: 0, tombes: 0, bloques: 0, parType: {}};
   for(const [id, p] of Object.entries(pack.authors || {})){
     r.authors.push({id, want: normTag(p.want || p.tag), mine: id === Me.id});
   }
@@ -1336,11 +1357,13 @@ function annInspect(pack){
     if(inc.deleted){ r.tombes++; continue; }
     r.parType[inc.type] = (r.parType[inc.type] || 0) + 1;
     const cur = byId.get(inc.id);
+    const tomb = tombs.get(inc.id);
+    if(tomb && (inc.c || 0) <= (tomb.c || 0)){ r.bloques++; continue; }
     if(!cur) r.nouveaux++;
     else if((inc.c || 0) > (cur.c || 0)) r.majs++;
     else r.connus++;
   }
-  r.total = r.nouveaux + r.majs + r.connus;
+  r.total = r.nouveaux + r.majs + r.connus + r.bloques;
   return r;
 }
 function annConfirm(pack, fileName, info){
@@ -1364,7 +1387,8 @@ function annConfirm(pack, fileName, info){
         <div class="li" style="cursor:default"><span class="t">${typeLine}</span>
           <span class="badge">${info.total}</span></div>
         <div class="li" style="cursor:default"><span class="t">${esc(t('ann.newItems'))} ${info.nouveaux}
-          · ${esc(t('ann.updated'))} ${info.majs} · ${esc(t('ann.known'))} ${info.connus}</span></div>
+          · ${esc(t('ann.updated'))} ${info.majs} · ${esc(t('ann.known'))} ${info.connus}${
+          info.bloques ? ' · ' + esc(t('ann.blocked')) + ' ' + info.bloques : ''}</span></div>
       </div>
       ${others.map(a => `<label class="f">${esc(t('ann.from'))} <span class="who">${esc(a.want)}</span>
         — ${esc(t('ann.rename'))}</label>
@@ -1372,6 +1396,8 @@ function annConfirm(pack, fileName, info){
           style="text-transform:uppercase;font-family:var(--mono);text-align:center">
         ${a.want === (Me.want || Me.tag) ? `<label class="f">
           <input type="checkbox" class="annMine" data-au="${esc(a.id)}">${esc(t('ann.isMe'))}</label>` : ''}`).join('')}
+      ${info.bloques ? `<label class="f" style="margin-top:10px">
+        <input type="checkbox" id="annRestore">${esc(t('ann.restoreDel'))} (${info.bloques})</label>` : ''}
       ${sameDoc ? '' : `<p style="color:var(--stamp);margin-top:10px">${esc(t('t.annOtherDoc'))}</p>`}
       <div class="foot"><button id="annNo">${esc(t('m.cancel'))}</button>
         <button class="primary" id="annYes">${esc(t('ann.load'))}</button></div>`);
@@ -1382,7 +1408,8 @@ function annConfirm(pack, fileName, info){
       const tags = {};
       $$('.annTag').forEach(i => { tags[i.dataset.au] = normTag(i.value); });
       const mine = $$('.annMine').find(c => c.checked);
-      closeModal(); finish({tags, adopt: mine ? mine.dataset.au : null});
+      const restore = !!($('#annRestore') && $('#annRestore').checked);
+      closeModal(); finish({tags, adopt: mine ? mine.dataset.au : null, restore});
     };
   });
 }
@@ -1401,11 +1428,12 @@ $('#fileAnn').onchange = async e=>{
       if(!pack || pack.magic !== ANN_MAGIC){ toast(t('t.annNotAnn'), 'err'); continue; }
       if(!Array.isArray(pack.items) || !pack.items.length){ toast(t('t.annEmpty'), 'err'); continue; }
       const info = annInspect(pack);
-      let tags = {};
+      let tags = {}, opt = {};
       if(!ANN_SILENT()){
         const r = await annConfirm(pack, f.name, info);
         if(!r) continue;
         tags = r.tags || {};
+        opt.restore = !!r.restore;
         /* « c'est moi » : les éléments du fichier deviennent les miens, et
            mon identifiant local bascule sur celui du fichier, de sorte que
            les deux appareils ne comptent plus pour deux participants */
@@ -1426,7 +1454,7 @@ $('#fileAnn').onchange = async e=>{
         pack.authors[id] = {...(pack.authors[id] || {}), want: tag, tag};
       }
       snapshot();
-      const r = annMerge(pack);
+      const r = annMerge(pack, {restore: !!opt.restore});
       nouveaux += r.added; majs += r.updated;
     }
     drawItems();
@@ -2025,7 +2053,8 @@ $('#layer').addEventListener('pointerdown', e=>{
     quickUpdate(it);
   };
   const up = ()=>{ removeEventListener('pointermove',move); removeEventListener('pointerup',up);
-                   removeEventListener('pointercancel',up); if(moved) drawItems(); };
+                   removeEventListener('pointercancel',up);
+                   if(moved){ touch(it); drawItems(); } };
   addEventListener('pointermove',move); addEventListener('pointerup',up); addEventListener('pointercancel',up);
 });
 /* Tracé libre : on dessine une bande, puis on cale le surlignage sur les
@@ -2188,6 +2217,7 @@ $('#cpOk').onclick = ()=>{
   snapshot();
   Object.assign(it, v);
   it.author = localStorage.getItem('pdfed.author') || it.author || '';
+  touch(it);
   closeComposer(); drawItems();
   if(isNew) toast(t('t.cmtAdded'),'ok');
 };
@@ -2386,7 +2416,7 @@ function renderInspector(){
     <div class="chip" style="margin-top:10px;line-height:1.55">${esc(t('insp.hint'))}</div>
     <div class="chip" style="margin-top:4px;line-height:1.55">${esc(t('insp.hintRot'))}</div>`;
 
-  const upd = fn=>{ snapshot(); fn(); drawItems(); };
+  const upd = fn=>{ snapshot(); fn(); touch(it); drawItems(); };
   $('#fOp').oninput  = e=>{
     it.opacity=+e.target.value/100;
     $('#opL').textContent = e.target.value+'%';
@@ -3019,6 +3049,20 @@ function showSplash(firstRun){
    précédente tant qu'aucun contrôle n'est demandé. */
 async function forceUpdate(){
   toast(t('t.updating'));
+  /* on lit le numéro directement dans le service worker publié : c'est lui
+     qui décide de la mise à jour, et c'est lui qu'il faut comparer */
+  try{
+    const r = await fetch('sw.js', {cache:'no-store'});
+    const m = /const CACHE_VERSION = '([^']+)'/.exec(await r.text());
+    if(m) toast(t('t.verAvail', {v: m[1], cur: APP_VERSION}), m[1] === APP_VERSION ? 'ok' : undefined);
+  }catch(err){}
+  /* le numéro réellement publié, lu hors cache : sans lui, une version qui
+     ne s'installe pas est indiscernable d'une version déjà à jour */
+  try{
+    const r = await fetch('sw.js', {cache:'no-store'});
+    const m = /CACHE_VERSION\s*=\s*'([^']+)'/.exec(await r.text());
+    if(m) toast(t('t.updFound', {v: m[1]}));
+  }catch(err){ console.warn('version serveur:', err.message); }
   try{
     const reg = await navigator.serviceWorker.getRegistration();
     if(!reg){ location.reload(); return; }

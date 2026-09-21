@@ -5,6 +5,45 @@ le texte de livraison correspondant.
 
 ---
 
+## v1.3-multi — suppressions datées, annonce fidèle
+
+La fenêtre d'import annonçait un élément « nouveau » que la fusion refusait ensuite en silence :
+l'élément avait été supprimé localement, et la pierre tombale bloquait son retour sans que
+l'analyse en tienne compte. Deux corrections.
+
+L'analyse compte désormais une catégorie « supprimés ici » et l'affiche : ce qui est annoncé est
+ce qui sera fait.
+
+La suppression ne l'emporte plus indéfiniment. Elle ne vaut que contre ce qu'elle a vu : une
+version de l'élément postérieure à la suppression le fait revenir, et une suppression reçue ne
+s'applique pas à une version locale plus récente. C'est la règle attendue d'un registre
+répliqué, et elle évite qu'une suppression prononcée par erreur ne devienne définitive pour
+tout le monde.
+
+Troisième point, moins visible mais nécessaire : toute retouche avance maintenant le compteur de
+l'élément — validation d'un commentaire, changement dans l'inspecteur, déplacement. Sans cela,
+deux appareils modifiant le même élément n'auraient pu être départagés que par l'ordre des
+exports.
+
+Le bouton « Mettre à jour » annonce enfin le numéro de version réellement publié, lu hors cache.
+
+---
+
+## v1.3.1-multi — imports clarifiés, restauration
+
+La version installée contenait trois défauts qui, combinés, produisent exactement le symptôme
+observé. La fenêtre de validation comptait comme « nouveau » tout élément absent localement,
+sans regarder les suppressions locales, alors que la fusion, elle, les respectait : un élément
+supprimé ici était annoncé comme nouveau, puis silencieusement écarté. Une suppression reçue
+effaçait l'élément local même quand celui-ci était plus récent. Et une modification faite par le
+panneau de saisie ne relevait pas le compteur logique, si bien que la comparaison ne la voyait pas.
+
+Les trois sont corrigés. La fenêtre distingue désormais les éléments nouveaux, mis à jour, connus,
+et bloqués par une suppression locale ; pour ces derniers, une case permet de les restaurer. Le
+bouton de mise à jour affiche la version publiée en regard de la version installée.
+
+---
+
 ## v1.2.1-multi — correction du numéro de version
 
 Le paquet v1.2 portait encore les numéros de la v1.1, dans l'application comme dans le service
