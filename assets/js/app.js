@@ -19,7 +19,7 @@ const bind = (ids, fn)=> ids.forEach(id=>{ const el=$(id); if(el) el.onclick = f
 
 let toastT;
 let deferredPrompt = null;   // requête d'installation PWA, captée plus bas
-const APP_VERSION = 'v1.0.1';
+const APP_VERSION = 'v1.0.2';
 const APP_URL = 'https://angstik.github.io/pdf_editor/';
 /* Saisie flottante des commentaires : fonction en cours de mise au point,
    désactivée par défaut. */
@@ -1840,7 +1840,9 @@ $('#cpOk').onclick = ()=>{
   Object.assign(it, v);
   it.author = localStorage.getItem('pdfed.author') || it.author || '';
   closeComposer(); drawItems();
-  if(isNew) toast(t('t.cmtAdded'),'ok');
+  /* le total permet de vérifier d'un coup d'oeil que l'élément est bien
+     entré dans le document, et non seulement annoncé */
+  if(isNew) toast(t('t.cmtAddedN', {n: Doc.items.filter(i => i.type === 'comment').length}), 'ok');
 };
 $('#cpNo').onclick = ()=>{
   if(!composing) return;

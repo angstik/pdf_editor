@@ -12,6 +12,7 @@ const I18N = {
 /* ------------------------------------------------------------------ FR */
 fr:{
 locale:'fr-FR',
+'t.cmtAddedN':"Commentaire ajouté — {n} en tout",
 'ann.restoreDel':"Restaurer ces éléments supprimés ici",
 't.verAvail':"Version en ligne : {v} — installée : {cur}",
 'ann.blocked':"Supprimés ici",
@@ -250,6 +251,7 @@ locale:'fr-FR',
 /* ------------------------------------------------------------------ EN */
 en:{
 locale:'en-GB',
+'t.cmtAddedN':"Comment added — {n} in total",
 'ann.restoreDel':"Restore these items deleted here",
 't.verAvail':"Online version: {v} — installed: {cur}",
 'ann.blocked':"Deleted here",
@@ -488,6 +490,7 @@ locale:'en-GB',
 /* ------------------------------------------------------------------ DE */
 de:{
 locale:'de-DE',
+'t.cmtAddedN':"Kommentar hinzugefügt — insgesamt {n}",
 'ann.restoreDel':"Diese hier gelöschten Elemente wiederherstellen",
 't.verAvail':"Online-Version: {v} — installiert: {cur}",
 'ann.blocked':"Hier gelöscht",
@@ -727,6 +730,7 @@ locale:'de-DE',
 /* ------------------------------------------------------------------ ES */
 es:{
 locale:'es-ES',
+'t.cmtAddedN':"Comentario añadido — {n} en total",
 'ann.restoreDel':"Restaurar estos elementos eliminados aquí",
 't.verAvail':"Versión en línea: {v} — instalada: {cur}",
 'ann.blocked':"Eliminados aquí",
@@ -965,6 +969,7 @@ locale:'es-ES',
 /* ------------------------------------------------------------------ IT */
 it:{
 locale:'it-IT',
+'t.cmtAddedN':"Commento aggiunto — {n} in tutto",
 'ann.restoreDel':"Ripristina questi elementi eliminati qui",
 't.verAvail':"Versione online: {v} — installata: {cur}",
 'ann.blocked':"Eliminati qui",
@@ -1203,6 +1208,7 @@ locale:'it-IT',
 /* ------------------------------------------------------------------ UK */
 uk:{
 locale:'uk-UA',
+'t.cmtAddedN':"Коментар додано — усього {n}",
 'ann.restoreDel':"Відновити ці елементи, видалені тут",
 't.verAvail':"Версія онлайн: {v} — встановлена: {cur}",
 'ann.blocked':"Видалені тут",
@@ -1441,6 +1447,7 @@ locale:'uk-UA',
 /* ------------------------------------------------------------------ CS */
 cs:{
 locale:'cs-CZ',
+'t.cmtAddedN':"Komentář přidán — celkem {n}",
 'ann.restoreDel':"Obnovit tyto zde smazané prvky",
 't.verAvail':"Verze online: {v} — nainstalovaná: {cur}",
 'ann.blocked':"Zde smazané",

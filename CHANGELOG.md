@@ -29,6 +29,18 @@ Le bouton « Mettre à jour » annonce enfin le numéro de version réellement p
 
 ---
 
+## v1.3.2-multi / v1.0.2 — total affiché, identité au démarrage
+
+Signalement : « commentaire enregistré » s'affiche mais le commentaire ne l'est pas, dans les deux
+applications. Je n'ai pas su le reproduire — le banc d'essai montre l'élément présent après
+validation, et l'export le restitue. Deux mesures en attendant d'en savoir plus. Le message
+annonce désormais le nombre total de commentaires du document, ce qui rend le doute vérifiable
+d'un coup d'oeil. Et un vrai défaut trouvé au passage dans la variante multi est corrigé :
+l'identité n'était pas chargée au démarrage, si bien qu'après un rechargement les commentaires
+restaurés étaient pris pour ceux d'un autre participant, donc affichés en lecture seule.
+
+---
+
 ## v1.3.1-multi — imports clarifiés, restauration
 
 La version installée contenait trois défauts qui, combinés, produisent exactement le symptôme

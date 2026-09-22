@@ -19,7 +19,7 @@ const bind = (ids, fn)=> ids.forEach(id=>{ const el=$(id); if(el) el.onclick = f
 
 let toastT;
 let deferredPrompt = null;   // requête d'installation PWA, captée plus bas
-const APP_VERSION = 'v1.3.1-multi';
+const APP_VERSION = 'v1.3.2-multi';
 const APP_URL = 'https://angstik.github.io/pdf_editor/multi/';
 /* Saisie flottante des commentaires : fonction en cours de mise au point,
    désactivée par défaut. */
@@ -2219,7 +2219,9 @@ $('#cpOk').onclick = ()=>{
   it.author = localStorage.getItem('pdfed.author') || it.author || '';
   touch(it);
   closeComposer(); drawItems();
-  if(isNew) toast(t('t.cmtAdded'),'ok');
+  /* le total permet de vérifier d'un coup d'oeil que l'élément est bien
+     entré dans le document, et non seulement annoncé */
+  if(isNew) toast(t('t.cmtAddedN', {n: Doc.items.filter(i => i.type === 'comment').length}), 'ok');
 };
 $('#cpNo').onclick = ()=>{
   if(!composing) return;
@@ -3200,6 +3202,9 @@ if(window.visualViewport){
 }
 
 applyI18n();
+/* Sans cela, après un rechargement, mes propres éléments restaurés seraient
+   pris pour ceux d'un autre participant : Me.id serait encore nul. */
+Me.load();
 updateFlag();
 $('#appVer').textContent = APP_VERSION;
 setDocName('');

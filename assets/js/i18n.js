@@ -12,6 +12,7 @@ const I18N = {
 /* ------------------------------------------------------------------ FR */
 fr:{
 locale:'fr-FR',
+'t.cmtAddedN':"Commentaire ajouté — {n} en tout",
 'nav.guide':"Guide",
 'nav.share':"Partage",
 'nav.license':"Licences",
@@ -208,6 +209,7 @@ locale:'fr-FR',
 /* ------------------------------------------------------------------ EN */
 en:{
 locale:'en-GB',
+'t.cmtAddedN':"Comment added — {n} in total",
 'nav.guide':"Guide",
 'nav.share':"Share",
 'nav.license':"Licences",
@@ -404,6 +406,7 @@ locale:'en-GB',
 /* ------------------------------------------------------------------ DE */
 de:{
 locale:'de-DE',
+'t.cmtAddedN':"Kommentar hinzugefügt — insgesamt {n}",
 'nav.guide':"Handbuch",
 'nav.share':"Teilen",
 'nav.license':"Lizenzen",
@@ -601,6 +604,7 @@ locale:'de-DE',
 /* ------------------------------------------------------------------ ES */
 es:{
 locale:'es-ES',
+'t.cmtAddedN':"Comentario añadido — {n} en total",
 'nav.guide':"Guía",
 'nav.share':"Compartir",
 'nav.license':"Licencias",
@@ -797,6 +801,7 @@ locale:'es-ES',
 /* ------------------------------------------------------------------ IT */
 it:{
 locale:'it-IT',
+'t.cmtAddedN':"Commento aggiunto — {n} in tutto",
 'nav.guide':"Guida",
 'nav.share':"Condividi",
 'nav.license':"Licenze",
@@ -993,6 +998,7 @@ locale:'it-IT',
 /* ------------------------------------------------------------------ UK */
 uk:{
 locale:'uk-UA',
+'t.cmtAddedN':"Коментар додано — усього {n}",
 'nav.guide':"Посібник",
 'nav.share':"Поділитися",
 'nav.license':"Ліцензії",
@@ -1189,6 +1195,7 @@ locale:'uk-UA',
 /* ------------------------------------------------------------------ CS */
 cs:{
 locale:'cs-CZ',
+'t.cmtAddedN':"Komentář přidán — celkem {n}",
 'nav.guide':"Příručka",
 'nav.share':"Sdílet",
 'nav.license':"Licence",
