@@ -19,7 +19,7 @@ const bind = (ids, fn)=> ids.forEach(id=>{ const el=$(id); if(el) el.onclick = f
 
 let toastT;
 let deferredPrompt = null;   // requête d'installation PWA, captée plus bas
-const APP_VERSION = 'v1.3.3-multi';
+const APP_VERSION = 'v1.3.4-multi';
 const APP_URL = 'https://angstik.github.io/pdf_editor/multi/';
 /* Saisie flottante des commentaires : fonction en cours de mise au point,
    désactivée par défaut. */
@@ -1386,9 +1386,14 @@ function annConfirm(pack, fileName, info){
           <span class="mono">${esc(when)}</span></div>
         <div class="li" style="cursor:default"><span class="t">${typeLine}</span>
           <span class="badge">${info.total}</span></div>
-        <div class="li" style="cursor:default"><span class="t">${esc(t('ann.newItems'))} ${info.nouveaux}
-          · ${esc(t('ann.updated'))} ${info.majs} · ${esc(t('ann.known'))} ${info.connus}${
-          info.bloques ? ' · ' + esc(t('ann.blocked')) + ' ' + info.bloques : ''}</span></div>
+        <div class="li" style="cursor:default"><span class="t">${esc(t('ann.newItems'))}</span>
+          <span class="badge ok">${info.nouveaux}</span>
+          <span class="t" style="text-align:right">${esc(t('ann.updated'))}</span>
+          <span class="badge">${info.majs}</span></div>
+        <div class="li" style="cursor:default"><span class="t">${esc(t('ann.known'))}</span>
+          <span class="badge">${info.connus}</span>
+          <span class="t" style="text-align:right">${esc(t('ann.blocked'))}</span>
+          <span class="badge${info.bloques ? ' ok' : ''}">${info.bloques}</span></div>
       </div>
       ${others.map(a => `<label class="f">${esc(t('ann.from'))} <span class="who">${esc(a.want)}</span>
         — ${esc(t('ann.rename'))}</label>
@@ -1935,6 +1940,8 @@ async function drawItems(){
         const box=document.createElement('div');  box.className='cmt-box';
         const num=document.createElement('div');  num.className='cmt-n';
         num.textContent = cmtNumber(it.id);
+        /* pas la place à gauche : l'étiquette passe au-dessus du cadre */
+        if(it.x * s < 64) el.classList.add('cmt-tight');
         el.append(tint, box, num);
         el.title = it.text || '';
       } else if(it.type==='highlight'){
@@ -2199,7 +2206,10 @@ $('#cpCol').onclick = ()=>{
   const cur = composing ? composing.it.color : CMT_COLOR;
   pal.innerHTML = colorRowHtml('cpRow', cur);
   bindColorRow('cpRow', (c, done)=>{
-    cpSetColor(c, false);
+    /* un choix confirmé devient le défaut du prochain commentaire : sans
+       cela la couleur retombait sur une valeur ancienne, sans rapport
+       avec les derniers choix */
+    cpSetColor(c, done);
     if(done){ pal.hidden = true; setTimeout(()=>edCaretEnd('cpTxt'), 0); }
   });
   keepCaret($('#cpTxt'), ['#cpRow button'], $('#composer'));
@@ -2222,6 +2232,7 @@ $('#cpOk').onclick = ()=>{
   snapshot();
   Object.assign(it, v);
   it.author = localStorage.getItem('pdfed.author') || it.author || '';
+  if(it.color) localStorage.setItem('pdfed.cmt.color', it.color);   // défaut du suivant
   touch(it);
   closeComposer(); drawItems();
   /* le total permet de vérifier d'un coup d'oeil que l'élément est bien

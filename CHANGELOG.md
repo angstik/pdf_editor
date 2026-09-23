@@ -29,6 +29,22 @@ Le bouton « Mettre à jour » annonce enfin le numéro de version réellement p
 
 ---
 
+## v1.3.4-multi / v1.0.4 — pastilles lisibles, couleur fidèle
+
+Le décompte de l'import passe sur deux lignes, chaque chiffre dans sa pastille : nouveaux et mis à
+jour d'abord, connus et bloqués ensuite.
+
+La pastille numérotée du commentaire était un disque de vingt pixels, ce qui convenait à un
+chiffre mais rognait une étiquette comme « DWE-12 ». Elle devient une gélule de largeur libre,
+posée dans la marge à gauche du cadre, et bascule au-dessus lorsque la marge manque.
+
+La couleur revenait sans cesse à une valeur ancienne parce qu'un choix fait dans la palette du
+panneau n'était jamais mémorisé : seule la liste des couleurs récentes l'était. Un choix confirmé,
+comme la validation d'un commentaire, enregistre désormais la couleur comme défaut du suivant, et
+la palette rouvre sur cette couleur sélectionnée.
+
+---
+
 ## v1.3.3-multi / v1.0.3 — commentaire perdu à la validation
 
 Signalement précisé : le commentaire n'est pas créé lorsque la reproduction de la source n'est pas
