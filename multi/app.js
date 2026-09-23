@@ -19,7 +19,7 @@ const bind = (ids, fn)=> ids.forEach(id=>{ const el=$(id); if(el) el.onclick = f
 
 let toastT;
 let deferredPrompt = null;   // requête d'installation PWA, captée plus bas
-const APP_VERSION = 'v1.3.2-multi';
+const APP_VERSION = 'v1.3.3-multi';
 const APP_URL = 'https://angstik.github.io/pdf_editor/multi/';
 /* Saisie flottante des commentaires : fonction en cours de mise au point,
    désactivée par défaut. */
@@ -2192,7 +2192,7 @@ function cpSetColor(c, commit){
   }
 }
 $('#cpShot').onclick = ()=>{ cpSetShot(!$('#cpShot').classList.contains('on')); };
-$('#cpClr').onclick = ()=>{ edSet('cpTxt',''); edCaretEnd('cpTxt'); };
+$('#cpClr').onclick = ()=>{ edSet('cpTxt',''); if(composing) composing.it.text = ''; edCaretEnd('cpTxt'); };
 $('#cpCol').onclick = ()=>{
   const pal = $('#cpPal');
   if(!pal.hidden){ pal.hidden = true; return; }
@@ -2206,14 +2206,19 @@ $('#cpCol').onclick = ()=>{
   pal.hidden = false;
 };
 function composerValues(){
-  return {text: edGet('cpTxt').trim(),
+  /* innerText dépend du rendu : si le champ vient de perdre le focus, ou si
+     le navigateur n'a pas encore reflété la frappe, la lecture peut revenir
+     vide alors que le texte existe. L'élément, tenu à jour à chaque frappe,
+     sert donc de filet. */
+  const lu = edGet('cpTxt').trim();
+  return {text: lu || ((composing && composing.it.text) || '').trim(),
           color: composing ? composing.it.color : CMT_COLOR,
           shot: $('#cpShot').classList.contains('on')};
 }
 $('#cpOk').onclick = ()=>{
   if(!composing) return;
   const {it, isNew} = composing, v = composerValues();
-  if(isNew && !v.text){ return $('#cpNo').click(); }
+  if(isNew && !v.text){ toast(t('t.cmtEmpty')); return $('#cpNo').click(); }
   snapshot();
   Object.assign(it, v);
   it.author = localStorage.getItem('pdfed.author') || it.author || '';

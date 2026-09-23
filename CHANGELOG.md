@@ -29,6 +29,21 @@ Le bouton « Mettre à jour » annonce enfin le numéro de version réellement p
 
 ---
 
+## v1.3.3-multi / v1.0.3 — commentaire perdu à la validation
+
+Signalement précisé : le commentaire n'est pas créé lorsque la reproduction de la source n'est pas
+cochée. Le banc d'essai ne reproduit rien, quel que soit l'ordre des gestes — la cause tient donc
+au navigateur. Mais l'observation désigne le coupable : le seul chemin qui supprime un commentaire
+à la validation est un texte lu vide, et `innerText` dépend du rendu, si bien qu'un champ venant
+de perdre le focus peut se lire vide alors que le texte existe.
+
+Le texte de l'élément, tenu à jour à chaque frappe, sert désormais de filet : si la lecture du
+champ revient vide, c'est lui qui fait foi. La gomme vide les deux, pour que le filet ne
+ressuscite pas un texte volontairement effacé. Et l'abandon d'un commentaire vide affiche
+maintenant un message, au lieu de faire disparaître le cadre sans explication.
+
+---
+
 ## v1.3.2-multi / v1.0.2 — total affiché, identité au démarrage
 
 Signalement : « commentaire enregistré » s'affiche mais le commentaire ne l'est pas, dans les deux
