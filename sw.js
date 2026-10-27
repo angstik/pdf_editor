@@ -8,8 +8,17 @@
    d'authentification, une page de connexion renvoyée par redirection n'entrera
    jamais dans le cache à la place des fichiers de l'application.
    ===================================================================== */
-const CACHE_VERSION = 'v1.0.4';
+const CACHE_VERSION = 'v1.0.5';
 const CACHE = 'pdfed-' + CACHE_VERSION;
+/* Les deux applications (racine et /multi/) partagent l'origine, donc le même
+   stockage de caches. Chacune ne purge que sa propre famille : le préfixe de
+   son nom suivi d'un numéro de version. Sans cela, l'activation de l'une
+   effaçait le cache hors ligne de l'autre. */
+const FAMILY = CACHE.slice(0, CACHE.length - CACHE_VERSION.length);
+const mine = k => k.startsWith(FAMILY) && /^v\d/.test(k.slice(FAMILY.length));
+/* Sous-répertoires occupés par une application voisine, qui a son propre
+   service worker : celui-ci ne doit jamais en servir les requêtes. */
+const NESTED = ['multi/'];
 
 const SHELL = [
   './',
@@ -57,7 +66,7 @@ self.addEventListener('install', e=>{
 
 self.addEventListener('activate', e=>{
   e.waitUntil((async ()=>{
-    for(const k of await caches.keys()) if(k !== CACHE) await caches.delete(k);
+    for(const k of await caches.keys()) if(k !== CACHE && mine(k)) await caches.delete(k);
     await self.clients.claim();
   })());
 });
@@ -67,6 +76,13 @@ self.addEventListener('fetch', e=>{
   if(req.method !== 'GET') return;
   const url = new URL(req.url);
   if(url.origin !== location.origin) return;
+  /* première visite de /multi/ sur un appareil où seule la racine est
+     installée : la navigation tombait ici et la page de multi était rangée
+     dans le cache de la racine sous le nom index.html */
+  const rel = url.pathname.slice(new URL(self.registration.scope).pathname.length);
+  if(NESTED.some(d => rel.startsWith(d))) return;
+  /* une lecture explicitement hors cache (contrôle de version) passe au réseau */
+  if(req.cache === 'no-store') return;
 
   // Navigations : réseau d'abord, repli sur le cache quand on est hors ligne
   if(req.mode === 'navigate'){

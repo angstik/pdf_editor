@@ -7,13 +7,20 @@
    lourds qui, eux, ne changeront pas : les bibliothèques vendorisées,
    les polices, les icônes et le guide.
 
-   Relancer ce script réaligne /multi/ sur la racine : à n'utiliser que
-   tant que la variante n'a pas commencé à diverger.
+   ATTENTION : /multi/ a divergé (partage d'annotations). Relancer ce script
+   sans argument écraserait ce travail. Il sert désormais au contrôle :
+
+     node tools/build-multi.cjs /chemin/temporaire
+     diff -r /chemin/temporaire multi/
+
+   produit /multi/ tel que la racine le donnerait, sans toucher au dépôt ; le
+   diff ne doit montrer que le partage d'annotations et les numéros de version.
+   Tout autre écart est une correction faite d'un seul côté.
    ===================================================================== */
 const fs = require('fs');
 const path = require('path');
 const ROOT = path.join(__dirname, '..');
-const OUT = path.join(ROOT, 'multi');
+const OUT = process.argv[2] ? path.resolve(process.argv[2]) : path.join(ROOT, 'multi');
 
 const read = p => fs.readFileSync(path.join(ROOT, p), 'utf8');
 const write = (p, s) => {

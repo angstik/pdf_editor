@@ -19,7 +19,7 @@ const bind = (ids, fn)=> ids.forEach(id=>{ const el=$(id); if(el) el.onclick = f
 
 let toastT;
 let deferredPrompt = null;   // requête d'installation PWA, captée plus bas
-const APP_VERSION = 'v1.0.4';
+const APP_VERSION = 'v1.0.5';
 const APP_URL = 'https://angstik.github.io/pdf_editor/';
 /* Saisie flottante des commentaires : fonction en cours de mise au point,
    désactivée par défaut. */
@@ -1426,17 +1426,22 @@ function snapshot(){
   Doc.redo.length = 0;
   Doc.dirty = true;          // sert à n'avertir qu'en cas de perte réelle
 }
+/* Pendant la saisie d'un commentaire, l'historique est gelé : rejouer un
+   instantané remplacerait les éléments par des copies, et la validation
+   porterait sur un objet qui ne figure plus dans le document. */
 function undo(){
+  if(composing){ toast(t('t.cmtBusy')); return; }
   if(!Doc.undo.length){ toast(t('t.nothingUndo')); return; }
   Doc.redo.push(snap()); restore(Doc.undo.pop()); toast(t('t.undone'));
 }
 function redo(){
+  if(composing){ toast(t('t.cmtBusy')); return; }
   if(!Doc.redo.length){ toast(t('t.nothingRedo')); return; }
   Doc.undo.push(snap()); restore(Doc.redo.pop()); toast(t('t.redone'));
 }
 function syncHistoryButtons(){
-  $('#btnUndo').disabled = !Doc.undo.length;
-  $('#btnRedo').disabled = !Doc.redo.length;
+  $('#btnUndo').disabled = !Doc.undo.length || !!composing;
+  $('#btnRedo').disabled = !Doc.redo.length || !!composing;
 }
 
 /* Deux familles libres embarquées (SIL OFL, sous-ensembles latin + cyrillique)
@@ -1772,6 +1777,7 @@ let composing = null;
 function openComposer(it, isNew){
   composing = {it, isNew};
   document.body.classList.add('composing');
+  syncHistoryButtons();
   setMode(null);            // le tracé est terminé : plus de nouveau rectangle
   $('#cpShotLbl').textContent = t('insp.shotShort');
   cpSetShot(!!it.shot);
@@ -1796,6 +1802,7 @@ function closeComposer(){
   $('#composer').hidden = true;
   $('#cpPal').hidden = true;
   document.body.classList.remove('composing');
+  syncHistoryButtons();
 }
 function cpSetShot(on){
   $('#cpShot').classList.toggle('on', on);
@@ -1842,10 +1849,22 @@ function composerValues(){
           color: composing ? composing.it.color : CMT_COLOR,
           shot: $('#cpShot').classList.contains('on')};
 }
+/* L'élément en cours de saisie tel qu'il figure dans le document. Filet de
+   sécurité : si une opération l'en a retiré ou remplacé par une copie, il y
+   est raccroché, de sorte que valider aboutit toujours à un élément présent
+   — et que le total annoncé dise vrai. */
+function cpLive(){
+  const it = composing.it;
+  const live = Doc.items.find(i => i.id === it.id);
+  if(!live){ Doc.items.push(it); return it; }
+  if(live !== it){ Object.assign(live, {text: it.text, color: it.color, shot: it.shot}); composing.it = live; }
+  return live;
+}
 $('#cpOk').onclick = ()=>{
   if(!composing) return;
-  const {it, isNew} = composing, v = composerValues();
+  const v = composerValues(), {isNew} = composing;
   if(isNew && !v.text){ toast(t('t.cmtEmpty')); return $('#cpNo').click(); }
+  const it = cpLive();
   snapshot();
   Object.assign(it, v);
   it.author = localStorage.getItem('pdfed.author') || it.author || '';
@@ -1929,6 +1948,8 @@ function quickUpdate(it){
   const pos=$('#posInfo'); if(pos) pos.textContent = fmtPos(it);
 }
 function removeItem(id){
+  /* supprimer le commentaire en cours de saisie, c'est l'abandonner */
+  if(composing && composing.it.id === id) closeComposer();
   snapshot();
   Doc.items = Doc.items.filter(i=>i.id!==id);
   if(Doc.sel===id) Doc.sel=null;
@@ -1937,8 +1958,16 @@ function removeItem(id){
 const fmtPos = it => `x ${it.x.toFixed(0)} · y ${it.y.toFixed(0)} · ${it.w.toFixed(0)}×${it.h.toFixed(0)} pt · ${it.rot.toFixed(0)}°`;
 
 document.addEventListener('keydown', e=>{
-  if(/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) return;
+  /* La zone de saisie des commentaires est un élément éditable, pas un champ
+     de formulaire : sans le second test, le Retour arrière d'une correction
+     supprimait le commentaire en cours, les flèches déplaçaient son cadre et
+     Ctrl+Z rejouait l'historique sous la saisie. */
+  const ae = document.activeElement;
+  if(ae && (/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) || ae.isContentEditable)) return;
   if(e.key==='Escape' && $('#mask').classList.contains('on')) return closeModal();
+  /* saisie ouverte mais focus ailleurs (clic sur la page) : aucun raccourci
+     ne doit toucher au commentaire qui attend sa validation */
+  if(composing) return;
   if(e.key==='Escape' && Doc.mode){ setMode(null); return; }
   const k = e.key.toLowerCase();
   if((e.ctrlKey||e.metaKey) && k==='z'){ e.preventDefault(); return e.shiftKey ? redo() : undo(); }
@@ -2646,6 +2675,15 @@ function showSplash(firstRun){
    précédente tant qu'aucun contrôle n'est demandé. */
 async function forceUpdate(){
   toast(t('t.updating'));
+  /* le numéro réellement publié, lu hors cache dans le service worker : c'est
+     lui qui décide de la mise à jour, et sans lui une version qui ne
+     s'installe pas est indiscernable d'une version déjà à jour */
+  let pub = null;
+  try{
+    const r = await fetch('sw.js', {cache:'no-store'});
+    const m = /const CACHE_VERSION = '([^']+)'/.exec(await r.text());
+    if(m){ pub = m[1]; toast(t('t.verAvail', {v: pub, cur: APP_VERSION}), pub === APP_VERSION ? 'ok' : undefined); }
+  }catch(err){ console.warn('version serveur:', err.message); }
   try{
     const reg = await navigator.serviceWorker.getRegistration();
     if(!reg){ location.reload(); return; }
@@ -2655,9 +2693,9 @@ async function forceUpdate(){
       waiting.postMessage('skipWaiting');
       waiting.addEventListener('statechange', ()=>{ if(waiting.state === 'activated') location.reload(); });
       setTimeout(()=>location.reload(), 1500);
-    } else {
+    } else if(!pub || pub === APP_VERSION){
       toast(t('t.upToDate'),'ok');
-    }
+    }                       // sinon le message des deux numéros reste affiché
   }catch(err){ console.warn(err.message); location.reload(); }
 }
 
